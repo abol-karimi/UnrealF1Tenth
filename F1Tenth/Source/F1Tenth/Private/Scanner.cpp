@@ -11,50 +11,9 @@
 #include <vector>
 //#include <math.h>
 
-//#include "voronoi_visual_utils.hpp"
+#include "voronoi_visual_utils.hpp"
 
-#include <boost/polygon/voronoi.hpp>
-using boost::polygon::voronoi_builder;
-using boost::polygon::voronoi_diagram;
-using boost::polygon::x;
-using boost::polygon::y;
-using boost::polygon::low;
-using boost::polygon::high;
 
-namespace boost {
-	namespace polygon {
-
-		template <>
-		struct geometry_concept<Point> {
-			typedef point_concept type;
-		};
-
-		template <>
-		struct point_traits<Point> {
-			typedef int coordinate_type;
-
-			static inline coordinate_type get(
-				const Point& point, orientation_2d orient) {
-				return (orient == HORIZONTAL) ? point.x : point.y;
-			}
-		};
-
-		template <>
-		struct geometry_concept<Segment> {
-			typedef segment_concept type;
-		};
-
-		template <>
-		struct segment_traits<Segment> {
-			typedef int coordinate_type;
-			typedef Point point_type;
-
-			static inline point_type get(const Segment& segment, direction_1d dir) {
-				return dir.to_int() ? segment.p1 : segment.p0;
-			}
-		};
-	}  // polygon
-}  // boost
 
 
 // Sets default values for this component's properties
@@ -174,7 +133,7 @@ void UScanner::Scan()
 
 void UScanner::Polylinize()
 {
-	std::vector<Segment> segments;
+	std::vector<segment_type> segments; // Set of input segments to voronoi problem
 	SegmentFloat NewSegment(0, 0, 1, 1);
 	float NewStartAngle = -135; // TODO change back to -135
 	float DiscontinuityThreshold = 1; // Unit is meters.
@@ -186,25 +145,31 @@ void UScanner::Polylinize()
 		bool FoundNewSegment = GetSegment(NewSegment, NewStartAngle, StepAngle, DiscontinuityThreshold);
 		if (FoundNewSegment)
 		{
-			DrawDebugLine(GetWorld(), LidarToWorldLocation(NewSegment.p0), LidarToWorldLocation(NewSegment.p1), FColor(0, 255, 0), false, 0.f, 0.f, 5.f);
-			// Convert SegmentFloat to Segment
-			Segment SegmentInMM = Segment(NewSegment.p0.x * 1000.f, NewSegment.p0.y * 1000.f, NewSegment.p1.x * 1000.f, NewSegment.p1.y * 1000.f);
-			segments.push_back(SegmentInMM);
+			// Convert SegmentFloat to segment_type
+			int x1, y1, x2, y2;
+			x1 = NewSegment.p0.x * 1000.f;
+			y1 = NewSegment.p0.y * 1000.f;
+			point_type lp(x1, y1);
+			x2 = NewSegment.p1.x * 1000.f;
+			y2 = NewSegment.p1.y * 1000.f;
+			point_type hp(x2, y2);
+			segments.push_back(segment_type(lp, hp)); // TODO what lp and hp? Any requiremtns on the order of points?
+			DrawDebugLine(GetWorld(), LidarToWorldLocation(lp), LidarToWorldLocation(hp), FColor(0, 255, 0), false, 0.f, 0.f, 5.f);
 		}
 	}
 
 	voronoi_diagram<double> vd;
 	construct_voronoi(segments.begin(), segments.end(), &vd);
-	for (voronoi_diagram<double>::const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it) {
+	for (const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it) {
 		if (it->is_finite() && it->is_primary())
 		{
-			const boost::polygon::voronoi_vertex<double>* vertex0 = it->vertex0();
-			const boost::polygon::voronoi_vertex<double>* vertex1 = it->vertex1();
-			UE_LOG(LogTemp, Warning, TEXT("edge: vertex0=(%f, %f), vertex1=(%f, %f)"), vertex0->x(), vertex0->y(), vertex1->x(), vertex1->y());
-			if (it->is_linear())
+			//const boost::polygon::voronoi_vertex<double>* vertex0 = it->vertex0(); 
+			//const boost::polygon::voronoi_vertex<double>* vertex1 = it->vertex1();
+			point_type vertex0(it->vertex0()->x()/1000.f, it->vertex0()->y()/1000.f);
+			point_type vertex1(it->vertex1()->x()/1000.f, it->vertex1()->y()/1000.f);
+			UE_LOG(LogTemp, Warning, TEXT("edge: vertex0=(%f, %f), vertex1=(%f, %f)"), vertex0.x(), vertex0.y(), vertex1.x(), vertex1.y());
+			if (true/*it->is_linear()*/)
 			{
-				PointFloat vertex0(vertex0->x()/1000.f, vertex0->y()/1000.f);
-				PointFloat vertex1(vertex1->x()/1000.f, vertex1->y()/1000.f);
 				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
 			}
 		}
@@ -330,13 +295,13 @@ bool UScanner::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float 
 
 
 
-FVector UScanner::LidarToWorldLocation(PointFloat point)
+FVector UScanner::LidarToWorldLocation(point_type point)
 {
-	FVector LocationInLidar = FVector(-point.x*100, point.y*100, 0); // *100 to convert to cm
+	FVector LocationInLidar = FVector(-point.x()*100, point.y()*100, 0); // *100 to convert to cm
 	FVector LidarXAxis = GetOwner()->GetActorForwardVector();
 	const FRotator Rot(0, -90, 0); // rotate 90 degrees counterclockwise.
 	FVector LidarYAxis = Rot.RotateVector(LidarXAxis);
-	return GetOwner()->GetActorLocation() + LidarXAxis * point.x * 100 + LidarYAxis * point.y * 100;
+	return GetOwner()->GetActorLocation() + LidarXAxis * point.x() * 100 + LidarYAxis * point.y() * 100;
 }
 
 float UScanner::Distance(PointFloat p0, PointFloat p1)
@@ -358,10 +323,10 @@ float UScanner::DistanceToLine(PointFloat point, PointFloat p0, PointFloat p1)
 	return (numerator / denominator);
 }
 
-//void UScanner::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge)
-//{
-//	coordinate_type max_dist = 1E-3 * (xh(brect_) - xl(brect_));
-//	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
-//	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
-//	voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
-//}
+void UScanner::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge)
+{
+	//coordinate_type max_dist = 1E-3 * (xh(brect_) - xl(brect_));
+	//point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
+	//segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
+	//voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+}
