@@ -11,7 +11,7 @@
 #include <vector>
 //#include <math.h>
 
-#include "voronoi_visual_utils.hpp"
+//#include "voronoi_visual_utils.hpp"
 
 
 
@@ -93,7 +93,14 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 	Polylinize();
 
 	// Make a voronoi diagram
+	vd_.clear();
+	construct_voronoi(segment_data_.begin(), segment_data_.end(), &vd_);
+	
+	// Visualize the voronoi diagram (stored in vd_)
+	DrawVD();
+
 	// Find a path along the voronoi vertecies
+
 	// Obtain a waypoint along the path
 
 }
@@ -133,9 +140,10 @@ void UScanner::Scan()
 
 void UScanner::Polylinize()
 {
-	std::vector<segment_type> segments; // Set of input segments to voronoi problem
+	segment_data_.clear();
+
 	SegmentFloat NewSegment(0, 0, 1, 1);
-	float NewStartAngle = -135; // TODO change back to -135
+	float NewStartAngle = -135;
 	float DiscontinuityThreshold = 1; // Unit is meters.
 	float StepAngle = 2; // Unit is degrees.
 	while (NewStartAngle < 135)
@@ -145,36 +153,23 @@ void UScanner::Polylinize()
 		bool FoundNewSegment = GetSegment(NewSegment, NewStartAngle, StepAngle, DiscontinuityThreshold);
 		if (FoundNewSegment)
 		{
-			// Convert SegmentFloat to segment_type
-			int x1, y1, x2, y2;
-			x1 = NewSegment.p0.x * 1000.f;
-			y1 = NewSegment.p0.y * 1000.f;
-			point_type lp(x1, y1);
-			x2 = NewSegment.p1.x * 1000.f;
-			y2 = NewSegment.p1.y * 1000.f;
-			point_type hp(x2, y2);
-			segments.push_back(segment_type(lp, hp)); // TODO what lp and hp? Any requiremtns on the order of points?
-			DrawDebugLine(GetWorld(), LidarToWorldLocation(lp), LidarToWorldLocation(hp), FColor(0, 255, 0), false, 0.f, 0.f, 5.f);
+			// Convert SegmentFloat to segment_type, and meters to millimeters
+			double x1, y1, x2, y2;
+			x1 = NewSegment.p0.x;
+			y1 = NewSegment.p0.y;
+			x2 = NewSegment.p1.x;
+			y2 = NewSegment.p1.y;
+			DrawDebugLine(
+				GetWorld(),
+				LidarToWorldLocation(point_type(x1, y1)),
+				LidarToWorldLocation(point_type(x2, y2)), FColor(0, 255, 0), false, 0.f, 0.f, 5.f);
+			x1 *= 1000.f;
+			y1 *= 1000.f;
+			x2 *= 1000.f;
+			y2 *= 1000.f;
+			segment_data_.push_back(segment_type(point_type(x1, y1), point_type(x2, y2))); // TODO what lp and hp? Any requiremtns on the order of points?
 		}
 	}
-
-	voronoi_diagram<double> vd;
-	construct_voronoi(segments.begin(), segments.end(), &vd);
-	for (const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it) {
-		if (it->is_finite() && it->is_primary())
-		{
-			//const boost::polygon::voronoi_vertex<double>* vertex0 = it->vertex0(); 
-			//const boost::polygon::voronoi_vertex<double>* vertex1 = it->vertex1();
-			point_type vertex0(it->vertex0()->x()/1000.f, it->vertex0()->y()/1000.f);
-			point_type vertex1(it->vertex1()->x()/1000.f, it->vertex1()->y()/1000.f);
-			UE_LOG(LogTemp, Warning, TEXT("edge: vertex0=(%f, %f), vertex1=(%f, %f)"), vertex0.x(), vertex0.y(), vertex1.x(), vertex1.y());
-			if (true/*it->is_linear()*/)
-			{
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
-			}
-		}
-	}
-
 }
 
 bool UScanner::GetDistanceAtAngle(float& OutDistance, float angle_deg)
@@ -325,8 +320,74 @@ float UScanner::DistanceToLine(PointFloat point, PointFloat p0, PointFloat p1)
 
 void UScanner::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge)
 {
-	//coordinate_type max_dist = 1E-3 * (xh(brect_) - xl(brect_));
-	//point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
-	//segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
-	//voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+	coordinate_type max_dist = 10;
+	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
+	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
+	voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+}
+
+point_type UScanner::retrieve_point(const cell_type& cell)
+{
+	source_index_type index = cell.source_index();
+	source_category_type category = cell.source_category();
+	if (category == SOURCE_CATEGORY_SINGLE_POINT) {
+		return point_data_[index];
+	}
+	index -= point_data_.size();
+	if (category == SOURCE_CATEGORY_SEGMENT_START_POINT) {
+		return low(segment_data_[index]);
+	}
+	else {
+		return high(segment_data_[index]);
+	}
+}
+
+segment_type UScanner::retrieve_segment(const cell_type& cell) {
+	source_index_type index = cell.source_index() - point_data_.size();
+	return segment_data_[index];
+}
+
+void UScanner::DrawVD()
+{
+	for (const_edge_iterator it = vd_.edges().begin(); it != vd_.edges().end(); ++it)
+	{
+		if (it->is_finite() && it->is_primary())
+		{
+			if (it->is_linear())
+			{
+				point_type vertex0(it->vertex0()->x() / 1000.f, it->vertex0()->y() / 1000.f);
+				point_type vertex1(it->vertex1()->x() / 1000.f, it->vertex1()->y() / 1000.f);
+				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
+			}
+			else if (it->is_curved())
+			{
+				point_type vertex0(it->vertex0()->x(), it->vertex0()->y());
+				point_type vertex1(it->vertex1()->x(), it->vertex1()->y());
+				std::vector<point_type> samples;
+				samples.push_back(vertex0);
+				samples.push_back(vertex1);
+				sample_curved_edge(*it, &samples);
+				for (std::size_t i = 0; i + 1 < samples.size(); ++i)
+				{
+					point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
+					point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
+					DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
+				}
+			}
+		}
+	}
+
+}
+
+
+std::vector<point_type> UScanner::get_discontinuity_midpoints()
+{
+	std::vector<point_type> discontinuities;
+	for (std::size_t i = 0; i + 1 < segment_data_.size(); ++i)
+	{
+		//point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
+		//point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
+		//DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
+	}
+	return discontinuities;
 }
