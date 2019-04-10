@@ -99,6 +99,9 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 	// Visualize the voronoi diagram (stored in vd_)
 	DrawVD();
 
+	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
+	point_type track_opening = get_trackopening();
+
 	// Find a path along the voronoi vertecies
 
 	// Obtain a waypoint along the path
@@ -289,7 +292,6 @@ bool UScanner::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float 
 }
 
 
-
 FVector UScanner::LidarToWorldLocation(point_type point)
 {
 	FVector LocationInLidar = FVector(-point.x()*100, point.y()*100, 0); // *100 to convert to cm
@@ -380,14 +382,33 @@ void UScanner::DrawVD()
 }
 
 
-std::vector<point_type> UScanner::get_discontinuity_midpoints()
+point_type UScanner::get_trackopening()
 {
 	std::vector<point_type> discontinuities;
+	double min_angle = 100000; // infinity
+	int min_index = 0;
 	for (std::size_t i = 0; i + 1 < segment_data_.size(); ++i)
 	{
-		//point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
-		//point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
-		//DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
+		if (euclidean_distance(segment_data_[i].high(), segment_data_[i + 1].low()) > 1000 /* gap > 1 meters */)
+		{
+			point_type endpoint = segment_data_[i].high();
+			convolve(endpoint, segment_data_[i + 1].low()); // add the seond point to the first
+			point_type midpoint = scale_down(endpoint, 2);
+			discontinuities.push_back(midpoint);
+			DrawDebugSphere(GetWorld(),
+				LidarToWorldLocation(point_type(midpoint.x()/1000.f, midpoint.y()/1000.f)),
+				10.f, 10.f, FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
+			double angle = atan(midpoint.y() / midpoint.x());
+			if (abs(angle) < min_angle)
+			{
+				min_angle = abs(angle);
+				min_index = discontinuities.size()-1;
+			}
+		}
 	}
-	return discontinuities;
+	point_type track_opening = discontinuities[min_index];
+	DrawDebugSphere(GetWorld(),
+		LidarToWorldLocation(point_type(track_opening.x() / 1000.f, track_opening.y() / 1000.f)),
+		15.f, 10.f, FColor(255, 255, 0), false, 0.f, 0.f, 1.f);
+	return track_opening;
 }

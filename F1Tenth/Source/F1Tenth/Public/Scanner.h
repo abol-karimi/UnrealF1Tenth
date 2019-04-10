@@ -87,7 +87,7 @@ public:
 	point_type retrieve_point(const cell_type& cell);
 	segment_type retrieve_segment(const cell_type& cell);
 	void DrawVD();
-	std::vector<point_type> get_discontinuity_midpoints();
+	point_type get_trackopening();
 
 	float Distances[1081]; // Array of distances
 	float AngularResolution = 0.25; // 4 measurements per angle
