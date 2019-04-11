@@ -9,12 +9,6 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-//#include <math.h>
-
-//#include "voronoi_visual_utils.hpp"
-
-
-
 
 // Sets default values for this component's properties
 UScanner::UScanner()
@@ -101,7 +95,7 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 
 	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
 	point_type track_opening;
-	if(!get_trackopening(track_opening))
+	if(!get_trackopening(track_opening, 1500.f)) // minimum 1500mm gap
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
 	}
@@ -231,14 +225,14 @@ bool UScanner::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float 
 	{
 		// No point at InterAngle, so skip it for the next call to GetSegment().
 		OutStartAngle = InterAngle + StepAngle;
-		UE_LOG(LogTemp, Warning, TEXT("!GetPointAtAngle(InterPoint, InterAngle)"));
+		//UE_LOG(LogTemp, Warning, TEXT("!GetPointAtAngle(InterPoint, InterAngle)"));
 		return false; // No segment found
 	}
 	if (Distance(StartPoint, InterPoint) > DiscontinuityThreshold) // TODO Report discontinuity
 	{
 		// Setup the next search from the beginning of the discontinuity.
 		OutStartAngle = InterAngle;
-		UE_LOG(LogTemp, Warning, TEXT("Distance(StartPoint, InterPoint) > DiscontinuityThreshold"));
+		//UE_LOG(LogTemp, Warning, TEXT("Distance(StartPoint, InterPoint) > DiscontinuityThreshold"));
 		return false; // No segment found
 	}
 
@@ -261,7 +255,7 @@ bool UScanner::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float 
 			OutSegment.p0 = StartPoint;
 			OutSegment.p1 = EndPoint;
 			OutStartAngle = CandidEndAngle + StepAngle; // Skip the OutOfRange angle for next call to GetSegment()
-			UE_LOG(LogTemp, Warning, TEXT("!FoundNewPoint"));
+			//UE_LOG(LogTemp, Warning, TEXT("!FoundNewPoint"));
 			return true; // Found a segment
 		}
 		else if (Distance(EndPoint, CandidEndPoint) > DiscontinuityThreshold) // TODO Report discontinuity
@@ -270,7 +264,7 @@ bool UScanner::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float 
 			OutSegment.p0 = StartPoint;
 			OutSegment.p1 = EndPoint;
 			OutStartAngle = CandidEndAngle; // Skip the discontinuity
-			UE_LOG(LogTemp, Warning, TEXT("Distance(EndPoint, CandidEndPoint) > DiscontinuityThreshold"));
+			//UE_LOG(LogTemp, Warning, TEXT("Distance(EndPoint, CandidEndPoint) > DiscontinuityThreshold"));
 			return true; // Found a segment
 		}
 		else if (DistanceToLine(CandidEndPoint, StartPoint, InterPoint) > 0.4)
@@ -279,7 +273,7 @@ bool UScanner::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float 
 			OutSegment.p0 = StartPoint;
 			OutSegment.p1 = EndPoint;
 			OutStartAngle = EndAngle;
-			UE_LOG(LogTemp, Warning, TEXT("DistanceToLine(CandidEndPoint, StartPoint, InterPoint) > 0.4"));
+			//UE_LOG(LogTemp, Warning, TEXT("DistanceToLine(CandidEndPoint, StartPoint, InterPoint) > 0.4"));
 			return true; // Found a segment
 		}
 		else // CandidEndPoint is close enough to the interpolated line (imposing curvature threshold)
@@ -386,14 +380,14 @@ void UScanner::DrawVD()
 }
 
 
-bool UScanner::get_trackopening(point_type& OutTrackOpening)
+bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // min_gap is in millimeters
 {
 	std::vector<point_type> discontinuities;
-	double min_angle = 100000; // infinity
-	int min_index = 0;
+	double max_cos = -1; // The angle behind the car has cos=-1
+	int max_cos_index;
 	for (std::size_t i = 0; i + 1 < segment_data_.size(); ++i)
 	{
-		if (euclidean_distance(segment_data_[i].high(), segment_data_[i + 1].low()) > 1000 /* gap > 1 meters */)
+		if (euclidean_distance(segment_data_[i].high(), segment_data_[i + 1].low()) > min_gap)
 		{
 			point_type endpoint = segment_data_[i].high();
 			convolve(endpoint, segment_data_[i + 1].low()); // add the seond point to the first
@@ -402,17 +396,18 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening)
 			DrawDebugSphere(GetWorld(),
 				LidarToWorldLocation(point_type(midpoint.x()/1000.f, midpoint.y()/1000.f)),
 				10.f, 10.f, FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
-			double angle = atan(midpoint.y() / midpoint.x());
-			if (abs(angle) < min_angle)
+			double cos = midpoint.x() / (midpoint.x()*midpoint.x()+midpoint.y()*midpoint.y());
+			//UE_LOG(LogTemp, Warning, TEXT("i: %d, x: %f, y:%f"), i, midpoint.x(), midpoint.y());
+			if (cos > max_cos)
 			{
-				min_angle = abs(angle);
-				min_index = discontinuities.size()-1;
+				max_cos_index = discontinuities.size() - 1; // current discontinuity is closest to front of the car
+				max_cos = cos;
 			}
 		}
 	}
 	if (discontinuities.size() > 0)
 	{
-		OutTrackOpening = discontinuities[min_index];
+		OutTrackOpening = discontinuities[max_cos_index];
 		DrawDebugSphere(GetWorld(),
 			LidarToWorldLocation(point_type(OutTrackOpening.x() / 1000.f, OutTrackOpening.y() / 1000.f)),
 			15.f, 10.f, FColor(255, 255, 0), false, 0.f, 0.f, 1.f);

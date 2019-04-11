@@ -87,7 +87,7 @@ public:
 	point_type retrieve_point(const cell_type& cell);
 	segment_type retrieve_segment(const cell_type& cell);
 	void DrawVD();
-	bool get_trackopening(point_type& OutTrackOpening);
+	bool get_trackopening(point_type& OutTrackOpening, double min_gap);
 
 	float Distances[1081]; // Array of distances
 	float AngularResolution = 0.25; // 4 measurements per angle
