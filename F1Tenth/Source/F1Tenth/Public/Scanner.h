@@ -88,6 +88,7 @@ public:
 	segment_type retrieve_segment(const cell_type& cell);
 	void DrawVD();
 	bool get_trackopening(point_type& OutTrackOpening, double min_gap);
+	bool get_closest_vertex(std::size_t& OutIndex, point_type point);
 
 	float Distances[1081]; // Array of distances
 	float AngularResolution = 0.25; // 4 measurements per angle
@@ -98,3 +99,78 @@ public:
 	std::vector<segment_type> segment_data_;
 };
 
+
+
+
+struct GNode {
+	point_type _vertex;
+	std::vector<GNode*> _neighbors;
+	std::vector<double> _edge_weights;
+	bool _flag;
+	double _dist;
+	GNode* _parent;
+	GNode(point_type& v) {
+		_vertex = v;
+		_flag = false;
+		_parent = NULL;
+		_dist = 0.f;
+	}
+	bool operator==(GNode* node) {
+		if (this->_vertex == node->_vertex)
+			return true;
+		else
+			return false;
+	}
+};
+
+class Graph {
+private:
+	std::vector<GNode*> _nodes;
+public:
+	GNode* get_node(const point_type& v);
+	void add_node(GNode* node) {
+		_nodes.push_back(node);
+	};
+
+	void add_edge(GNode*, GNode*);
+	bool compute_shortest_path(std::vector<point_type>&, GNode*, GNode*);
+	void print();
+};
+
+
+class PathMaker
+{
+
+public:
+	PathMaker() {
+	};
+
+private:
+	voronoi_diagram<double> _vd;
+	std::vector<point_type> _points;
+	std::vector<segment_type> _segments;
+protected:
+	point_type cast_to_point_type(const PointFloat& pf) {
+		int x1, y1;
+		x1 = pf.x*1000.f;
+		y1 = pf.y*1000.f;
+		return point_type(x1, y1);
+	}
+
+	segment_type cast_to_segment_type(const SegmentFloat& sf) {
+		point_type lp = cast_to_point_type(sf.p0);
+		point_type hp = cast_to_point_type(sf.p1);
+		return segment_type(lp, hp);
+	}
+	void construct_graph_from_vd(const voronoi_diagram<double>&, Graph&);
+	void construct_graph_from_vd(Graph&);
+
+public:
+	int print_primary_edges();
+	void construct_vd(const std::vector<SegmentFloat>&);
+	void construct_vd(const std::vector<PointFloat>&);
+	void construct_vd(const std::vector<SegmentFloat>&, const std::vector<PointFloat>&);
+	void count_and_color_cells();
+	bool get_path(std::vector<point_type>&, const point_type&, const point_type&);
+	bool get_path(std::vector<point_type>&, const voronoi_diagram<double>&, const point_type&, const point_type&);
+};

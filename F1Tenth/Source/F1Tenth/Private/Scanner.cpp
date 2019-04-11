@@ -10,6 +10,8 @@
 #include <iostream>
 #include <vector>
 
+
+
 // Sets default values for this component's properties
 UScanner::UScanner()
 {
@@ -98,6 +100,37 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 	if(!get_trackopening(track_opening, 1500.f)) // minimum 1500mm gap
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
+	}
+	else
+	{
+		std::size_t goal_index;
+		std::size_t source_index;
+		if (get_closest_vertex(goal_index, track_opening) && get_closest_vertex(source_index, point_type(0, 0)))
+		{
+			point_type source_point = point_type(vd_.vertices()[source_index].x() / 1000.f, vd_.vertices()[source_index].y() / 1000.f);
+			point_type goal_point = point_type(vd_.vertices()[goal_index].x()/1000.f, vd_.vertices()[goal_index].y()/1000.f);
+
+			DrawDebugSphere(GetWorld(), LidarToWorldLocation(source_point),
+				8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
+
+			DrawDebugSphere(GetWorld(), LidarToWorldLocation(goal_point),
+				8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
+
+			PathMaker pmaker;
+			std::vector<point_type> path;
+			bool result = pmaker.get_path(path, vd_, source_point, goal_point);
+			if (result)
+			{
+				for (std::vector<point_type>::iterator it = path.begin(); it != path.end()-1; ++it)
+				{
+					DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it+1)), FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
+					//printf("\nvertex=(%f, %f)", (*it).x(), (*it).y());
+				}
+			}
+
+
+		}
+		
 	}
 
 	// Find a path along the voronoi vertecies
@@ -423,4 +456,25 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 		return true;
 	}
 	else { return false; }
+}
+
+ bool UScanner::get_closest_vertex(std::size_t& OutIndex, point_type point)
+{
+	 if(vd_.vertices().size() == 0)
+	 {
+		 return false;
+	 }
+	double closest_distance = 1e10; // infinity
+	std::size_t current_index = 0;
+	for (const_vertex_iterator it = vd_.vertices().begin(); it != vd_.vertices().end(); ++it)
+	{
+		double candid_distance = euclidean_distance(point_type(it->x(), it->y()), point);
+		if (candid_distance < closest_distance)
+		{
+			closest_distance = candid_distance;
+			OutIndex = current_index;
+		}
+		current_index++;
+	}
+	return true;
 }
