@@ -100,7 +100,11 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 	DrawVD();
 
 	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
-	point_type track_opening = get_trackopening();
+	point_type track_opening;
+	if(!get_trackopening(track_opening))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
+	}
 
 	// Find a path along the voronoi vertecies
 
@@ -382,7 +386,7 @@ void UScanner::DrawVD()
 }
 
 
-point_type UScanner::get_trackopening()
+bool UScanner::get_trackopening(point_type& OutTrackOpening)
 {
 	std::vector<point_type> discontinuities;
 	double min_angle = 100000; // infinity
@@ -406,9 +410,13 @@ point_type UScanner::get_trackopening()
 			}
 		}
 	}
-	point_type track_opening = discontinuities[min_index];
-	DrawDebugSphere(GetWorld(),
-		LidarToWorldLocation(point_type(track_opening.x() / 1000.f, track_opening.y() / 1000.f)),
-		15.f, 10.f, FColor(255, 255, 0), false, 0.f, 0.f, 1.f);
-	return track_opening;
+	if (discontinuities.size() > 0)
+	{
+		OutTrackOpening = discontinuities[min_index];
+		DrawDebugSphere(GetWorld(),
+			LidarToWorldLocation(point_type(OutTrackOpening.x() / 1000.f, OutTrackOpening.y() / 1000.f)),
+			15.f, 10.f, FColor(255, 255, 0), false, 0.f, 0.f, 1.f);
+		return true;
+	}
+	else { return false; }
 }
