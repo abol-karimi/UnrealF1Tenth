@@ -376,6 +376,15 @@ void UScanner::DrawVD()
 			}
 		}
 	}
+	for (const_vertex_iterator it = vd_.vertices().begin(); it != vd_.vertices().end(); ++it)
+	{
+		if (true/*!it->is_degenerate()*/)
+		{
+			point_type vertex(it->x()/1000.f, it->y()/1000.f);
+			DrawDebugSphere(GetWorld(), LidarToWorldLocation(vertex),
+				5.f, 5.f, FColor(0, 0, 0), false, 0.f, 0.f, 1.f);
+		}
+	}
 
 }
 
@@ -396,7 +405,7 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 			DrawDebugSphere(GetWorld(),
 				LidarToWorldLocation(point_type(midpoint.x()/1000.f, midpoint.y()/1000.f)),
 				10.f, 10.f, FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
-			double cos = midpoint.x() / (midpoint.x()*midpoint.x()+midpoint.y()*midpoint.y());
+			double cos = midpoint.x() / euclidean_distance(midpoint, point_type(0, 0));
 			//UE_LOG(LogTemp, Warning, TEXT("i: %d, x: %f, y:%f"), i, midpoint.x(), midpoint.y());
 			if (cos > max_cos)
 			{
