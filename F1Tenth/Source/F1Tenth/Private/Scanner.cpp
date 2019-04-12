@@ -10,7 +10,8 @@
 #include <iostream>
 #include <vector>
 
-
+//static const std::size_t OBSTACLE_COLOR = 1;
+//static const std::size_t FREE_COLOR = 2;
 
 // Sets default values for this component's properties
 UScanner::UScanner()
@@ -97,45 +98,22 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 
 	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
 	point_type track_opening;
+	point_type PurePursuitGoal;
 	if(!get_trackopening(track_opening, 1500.f)) // minimum 1500mm gap
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
 	}
+	else if (!get_purepursuit_goal(PurePursuitGoal, track_opening))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Discontinuity found, but no pure_pursuit goal!"));
+	}
 	else
 	{
-		std::size_t goal_index;
-		std::size_t source_index;
-		if (get_closest_vertex(goal_index, track_opening) && get_closest_vertex(source_index, point_type(0, 0)))
-		{
-			point_type source_point = point_type(vd_.vertices()[source_index].x() / 1000.f, vd_.vertices()[source_index].y() / 1000.f);
-			point_type goal_point = point_type(vd_.vertices()[goal_index].x()/1000.f, vd_.vertices()[goal_index].y()/1000.f);
-
-			DrawDebugSphere(GetWorld(), LidarToWorldLocation(source_point),
-				8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
-
-			DrawDebugSphere(GetWorld(), LidarToWorldLocation(goal_point),
-				8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
-
-			PathMaker pmaker;
-			std::vector<point_type> path;
-			bool result = pmaker.get_path(path, vd_, source_point, goal_point);
-			if (result)
-			{
-				for (std::vector<point_type>::iterator it = path.begin(); it != path.end()-1; ++it)
-				{
-					DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it+1)), FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
-					//printf("\nvertex=(%f, %f)", (*it).x(), (*it).y());
-				}
-			}
-
-
-		}
-		
+		// visualize the pure_pusuit goalpoint
+		DrawDebugSphere(GetWorld(), LidarToWorldLocation(PurePursuitGoal),
+			9.f, 5.f, FColor(100, 10, 10), false, 0.f, 0.f, 1.f);
 	}
 
-	// Find a path along the voronoi vertecies
-
-	// Obtain a waypoint along the path
 
 }
 
@@ -175,6 +153,7 @@ void UScanner::Scan()
 void UScanner::Polylinize()
 {
 	segment_data_.clear();
+	segment_vertices.clear();
 
 	SegmentFloat NewSegment(0, 0, 1, 1);
 	float NewStartAngle = -135;
@@ -202,6 +181,8 @@ void UScanner::Polylinize()
 			x2 *= 1000.f;
 			y2 *= 1000.f;
 			segment_data_.push_back(segment_type(point_type(x1, y1), point_type(x2, y2))); // TODO what lp and hp? Any requiremtns on the order of points?
+			segment_vertices.insert(point_type(x1, y1));
+			segment_vertices.insert(point_type(x2, y2));
 		}
 	}
 }
@@ -464,10 +445,17 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 	 {
 		 return false;
 	 }
+	 // If vd_vertics() is nonempty, then there must be a closest nonobstacle vertex
 	double closest_distance = 1e10; // infinity
 	std::size_t current_index = 0;
 	for (const_vertex_iterator it = vd_.vertices().begin(); it != vd_.vertices().end(); ++it)
 	{
+		if (isObstacle(point_type(it->x(), it->y()))) // candid_point is an endpoint of an input segment
+		{
+			current_index++;
+			continue;
+		}
+
 		double candid_distance = euclidean_distance(point_type(it->x(), it->y()), point);
 		if (candid_distance < closest_distance)
 		{
@@ -478,3 +466,65 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 	}
 	return true;
 }
+
+
+ bool UScanner::get_purepursuit_goal(point_type& OutGoalPoint, point_type track_opening)
+ {
+	 std::size_t goal_index;
+	 std::size_t source_index;
+	 if (get_closest_vertex(goal_index, track_opening) && get_closest_vertex(source_index, point_type(0, 0)))
+	 {
+		 point_type source_point = point_type(vd_.vertices()[source_index].x() / 1000.f, vd_.vertices()[source_index].y() / 1000.f);
+		 point_type goal_point = point_type(vd_.vertices()[goal_index].x() / 1000.f, vd_.vertices()[goal_index].y() / 1000.f);
+
+		 DrawDebugSphere(GetWorld(), LidarToWorldLocation(source_point),
+			 8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
+
+		 DrawDebugSphere(GetWorld(), LidarToWorldLocation(goal_point),
+			 8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
+
+		 PathMaker pmaker;
+		 pmaker.set_segments(segment_data_);
+		 std::vector<point_type> path;
+		 bool found_path = pmaker.get_path(path, vd_, source_point, goal_point);
+		 if (found_path)
+		 {
+			 for (std::vector<point_type>::iterator it = path.end() - 1; it != path.begin(); --it)
+			 {
+				 // PathMaker gives points in meters
+				 // UE_LOG(LogTemp, Warning, TEXT("*it: x: %f, y: %f"), (*it).x(), (*it).y());
+				 DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
+				 if (((*it).y() > -(*it).x() || (*it).y() < (*it).x()) // point in front of the car
+					 && euclidean_distance(*(it-1), source_point) < 1.0f) // point not too close. TODO remove magic number
+					 // TODO interpolate based on distance instead of giving an endpoint.
+				 {
+					 OutGoalPoint = *it;
+					 return true;
+				 }
+			 }
+			 return false; // TODO pick another point?
+		 }
+		 else
+		 {
+			 return false;
+		 }
+	 }
+	 else
+	 {
+		 return false;
+	 }
+ 
+ }
+
+
+ bool UScanner::isObstacle(point_type point) // input point in millimeters
+ {
+	 for (auto itr = segment_vertices.begin(); itr != segment_vertices.end(); ++itr)
+	 {
+		 if (euclidean_distance(point, point_type(itr->x(), itr->y())) <= 5)
+		 {
+			 return true;
+		 }
+	 }
+	 return false;
+ }

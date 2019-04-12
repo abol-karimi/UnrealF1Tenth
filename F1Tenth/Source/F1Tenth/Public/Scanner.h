@@ -5,25 +5,11 @@
 #include <boost/polygon/polygon.hpp>
 #include <boost/polygon/voronoi.hpp>
 #include "voronoi_visual_utils.hpp"
+#include <set>
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Scanner.generated.h"
-
-
-//typedef long long int integral_coordinate_type;
-//
-//struct Point {
-//	integral_coordinate_type x;
-//	integral_coordinate_type y;
-//	Point(integral_coordinate_type x0, integral_coordinate_type y0) : x(x0), y(y0) {}
-//};
-//
-//struct Segment {
-//	Point p0;
-//	Point p1;
-//	Segment(integral_coordinate_type x1, integral_coordinate_type y1, integral_coordinate_type x2, integral_coordinate_type y2) : p0(x1, y1), p1(x2, y2) {}
-//};
 
 struct PointFloat {
 	float x;
@@ -55,6 +41,8 @@ typedef VD::edge_container_type edge_container_type;
 typedef VD::const_cell_iterator const_cell_iterator;
 typedef VD::const_vertex_iterator const_vertex_iterator;
 typedef VD::const_edge_iterator const_edge_iterator;
+
+typedef VD::vertex_type vertex_type;
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -89,6 +77,8 @@ public:
 	void DrawVD();
 	bool get_trackopening(point_type& OutTrackOpening, double min_gap);
 	bool get_closest_vertex(std::size_t& OutIndex, point_type point);
+	bool get_purepursuit_goal(point_type& OutGoalPoint, point_type track_opening);
+	bool isObstacle(point_type point);
 
 	float Distances[1081]; // Array of distances
 	float AngularResolution = 0.25; // 4 measurements per angle
@@ -97,6 +87,7 @@ public:
 	VD vd_;
 	std::vector<point_type> point_data_;
 	std::vector<segment_type> segment_data_;
+	std::set<point_type> segment_vertices;
 };
 
 
@@ -142,11 +133,14 @@ class PathMaker
 {
 
 public:
-	PathMaker() {
+	PathMaker()
+	{
+		_points.clear();
+		_segments.clear();
 	};
 
 private:
-	voronoi_diagram<double> _vd;
+	VD _vd;
 	std::vector<point_type> _points;
 	std::vector<segment_type> _segments;
 protected:
@@ -162,15 +156,21 @@ protected:
 		point_type hp = cast_to_point_type(sf.p1);
 		return segment_type(lp, hp);
 	}
-	void construct_graph_from_vd(const voronoi_diagram<double>&, Graph&);
-	void construct_graph_from_vd(Graph&);
-
+	void construct_graph_from_vd(const VD&, Graph&);
+	void color_close_vertices(const VD&);
+	void print_point_type(const point_type&);
+	void print_vertex_type(const vertex_type&);
 public:
 	int print_primary_edges();
+	void set_segments(std::vector<segment_type>& segments) {
+		_segments.clear();
+		_segments = segments;
+	}
 	void construct_vd(const std::vector<SegmentFloat>&);
 	void construct_vd(const std::vector<PointFloat>&);
 	void construct_vd(const std::vector<SegmentFloat>&, const std::vector<PointFloat>&);
 	void count_and_color_cells();
+	double compute_distance(point_type&, point_type&);
 	bool get_path(std::vector<point_type>&, const point_type&, const point_type&);
-	bool get_path(std::vector<point_type>&, const voronoi_diagram<double>&, const point_type&, const point_type&);
+	bool get_path(std::vector<point_type>&, const VD&, const point_type&, const point_type&);
 };
