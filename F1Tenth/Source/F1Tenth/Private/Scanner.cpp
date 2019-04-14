@@ -117,7 +117,7 @@ void UScanner::Polylinize()
 	segment_data_.clear();
 	segment_vertices.clear();
 
-	SegmentFloat NewSegment(0, 0, 1, 1);
+	SegmentFloat NewSegment(0, 0, 10, 10);
 	float NewStartAngle = -135;
 	float DiscontinuityThreshold = 1; // Unit is meters.
 	float StepAngle = 2; // Unit is degrees.
@@ -155,6 +155,10 @@ bool UScanner::GetDistanceAtAngle(float& OutDistance, float angle_deg)
 	// Slope is (1080-0)/(135-(-135)) = 1080/270
 	// Index-intercept is 1080/2 = 540
 	// Interpolation function is slope*angle_deg + intercept
+	if (angle_deg < LidarMinDegree || angle_deg > LidarMaxDegree)
+	{
+		return false;
+	}
 	int index = static_cast<int>(1080*angle_deg/270 + 540);
 	float Distance = Distances[index];
 	if (Distance < OutOfRange)

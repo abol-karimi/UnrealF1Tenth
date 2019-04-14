@@ -91,6 +91,8 @@ public:
 	std::set<point_type> segment_vertices;
 	float wheelbase = 0.33; // Distance (in meters) of rear axle to front axel
 	float distance_to_purepursuit_goal = 0.7; // Distance (in meters) between the rear axel and the goal point
+	float LidarMinDegree = -135;
+	float LidarMaxDegree = 135;
 };
 
 
