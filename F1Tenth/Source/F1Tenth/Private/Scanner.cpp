@@ -29,48 +29,6 @@ void UScanner::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FHitResult HitResult;
-	FVector HitLocation;
-	auto StartLocation = GetOwner()->GetActorLocation();
-	float ranges[1081];
-	float AngularResolution = 0.25; // 4 measurements per angle
-	float LidarRange = 10; // range in meters
-
-	for (int i = 0; i < 1081; i++)
-	{
-		const FRotator Rot(0, 135-i*AngularResolution, 0);
-		FVector MeasuringDirection = Rot.RotateVector(GetOwner()->GetActorForwardVector());
-		auto EndLocation = StartLocation + MeasuringDirection * LidarRange * 100; // *100 to convert to cm
-		if (GetWorld()->LineTraceSingleByChannel(
-			HitResult,
-			StartLocation,
-			EndLocation,
-			ECollisionChannel::ECC_Visibility)
-			)
-		{
-			HitLocation = HitResult.Location;
-			//DrawDebugLine(GetWorld(), StartLocation, HitLocation, FColor(255, 0, 0), true, 1000.f, 0.f, 1.f);
-			ranges[i] = (HitLocation - StartLocation).Size()/100; //divide by 100 to convert cm to meters
-		}
-		else
-		{
-			ranges[i] = 31;
-		}
-	}
-	
-	FString FileName = "ranges.floats";
-	FString AbsoluteFilePath = FPaths::ProjectSavedDir() + FileName;
-
-	//Creates an instance of ofstream, and creates a new file with address AbsoluteFilePath
-	std::ofstream rangesfile(std::string(TCHAR_TO_UTF8(*AbsoluteFilePath)), std::ios::trunc);
-
-	for (int i=0; i<1081; i++)
-	{
-		rangesfile << ranges[i] << std::endl;
-	}
-
-	// Close the file stream explicitly
-	rangesfile.close();
 
 	return;
 }
@@ -114,6 +72,10 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 			9.f, 5.f, FColor(100, 10, 10), false, 0.f, 0.f, 1.f);
 	}
 
+
+	// Draw circle corresponding to pure_pursuit lookahead distance (to rear axle)
+	DrawDebugCircle(GetWorld(), LidarToWorldLocation(point_type(-wheelbase, 0)),
+		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 0, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
 
 }
 
@@ -468,21 +430,62 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 }
 
 
+ bool UScanner::get_closest_front_vertex(std::size_t& OutIndex, point_type point)
+ {
+	 if (vd_.vertices().size() == 0)
+	 {
+		 return false;
+	 }
+	 // If vd_vertics() is nonempty, then there must be a closest nonobstacle vertex
+	 double closest_distance = 1e10; // infinity
+	 std::size_t current_index = 0;
+	 for (const_vertex_iterator it = vd_.vertices().begin(); it != vd_.vertices().end(); ++it)
+	 {
+		 if (it->x() + wheelbase <= 0) // Ignore points that are behind the rear axle
+		 {
+			 current_index++;
+			 continue;
+		 }
+		 if (isObstacle(point_type(it->x(), it->y()))) // candid_point is an endpoint of an input segment
+		 {
+			 current_index++;
+			 continue;
+		 }
+
+		 double candid_distance = euclidean_distance(point_type(it->x(), it->y()), point);
+		 if (candid_distance < closest_distance)
+		 {
+			 closest_distance = candid_distance;
+			 OutIndex = current_index;
+		 }
+		 current_index++;
+	 }
+	 return true;
+ }
+
+
  bool UScanner::get_purepursuit_goal(point_type& OutGoalPoint, point_type track_opening)
  {
 	 std::size_t goal_index;
 	 std::size_t source_index;
-	 if (get_closest_vertex(goal_index, track_opening) && get_closest_vertex(source_index, point_type(0, 0)))
+	 if (get_closest_vertex(goal_index, track_opening) && get_closest_front_vertex(source_index, point_type(0, 0)))
 	 {
 		 point_type source_point = point_type(vd_.vertices()[source_index].x() / 1000.f, vd_.vertices()[source_index].y() / 1000.f);
 		 point_type goal_point = point_type(vd_.vertices()[goal_index].x() / 1000.f, vd_.vertices()[goal_index].y() / 1000.f);
+		 point_type rear_axle(-wheelbase, 0);
+		 if (euclidean_distance(goal_point, rear_axle) < distance_to_purepursuit_goal)
+		 {
+			 OutGoalPoint = goal_point;
+			 return true;
+		 }
 
 		 DrawDebugSphere(GetWorld(), LidarToWorldLocation(source_point),
 			 8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
 
 		 DrawDebugSphere(GetWorld(), LidarToWorldLocation(goal_point),
 			 8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
-
+		 
+		 // If reached here, goalpoint is further than distance_to_purepursuit_goal
 		 PathMaker pmaker;
 		 pmaker.set_segments(segment_data_);
 		 std::vector<point_type> path;
@@ -494,15 +497,30 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 				 // PathMaker gives points in meters
 				 // UE_LOG(LogTemp, Warning, TEXT("*it: x: %f, y: %f"), (*it).x(), (*it).y());
 				 DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
-				 if (((*it).y() > -(*it).x() || (*it).y() < (*it).x()) // point in front of the car
-					 && euclidean_distance(*(it-1), source_point) < 1.0f) // point not too close. TODO remove magic number
+				 if ((*it).x() > 0 // point in front of the car
+					 && euclidean_distance(*(it-1), rear_axle) < distance_to_purepursuit_goal) // next point too close.
 					 // TODO interpolate based on distance instead of giving an endpoint.
 				 {
-					 OutGoalPoint = *it;
+					 double x1 = (it-1)->x()+wheelbase; // Convert lidar coordinates to rear axle coordinates (assuming lidar at front axle)
+					 double y1 = (it-1)->y();
+					 double x2 = it->x()+wheelbase;
+					 double y2 = it->y();
+					 double dx = x2 - x1;
+					 double dy = y2 - y1;
+					 double A = dx * dx;
+					 double B = x1 * dx + y1 * dy;
+					 double C = x1 * x1 + y1 * y1 - distance_to_purepursuit_goal * distance_to_purepursuit_goal;
+					 double t = (-B + sqrt(B*B - A*C)) / A;
+					 OutGoalPoint = point_type(x1 + t * dx - wheelbase, y1 + t * dy);
 					 return true;
 				 }
 			 }
-			 return false; // TODO pick another point?
+			 // If reached here, the source_point is not within distance_to_purepursuit_goal meters of rear axle
+			 double x1 = source_point.x() + wheelbase;
+			 double y1 = source_point.y();
+			 double d = sqrt(x1*x1 + y1*y1);
+			 OutGoalPoint = point_type(x1 / d * distance_to_purepursuit_goal - wheelbase, y1 / d * distance_to_purepursuit_goal);
+			 return true; // TODO pushback rear axel to path to avoid this extra case
 		 }
 		 else
 		 {

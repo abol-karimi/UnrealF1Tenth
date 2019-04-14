@@ -79,6 +79,7 @@ public:
 	bool get_closest_vertex(std::size_t& OutIndex, point_type point);
 	bool get_purepursuit_goal(point_type& OutGoalPoint, point_type track_opening);
 	bool isObstacle(point_type point);
+	bool get_closest_front_vertex(std::size_t& OutIndex, point_type point);
 
 	float Distances[1081]; // Array of distances
 	float AngularResolution = 0.25; // 4 measurements per angle
@@ -88,6 +89,8 @@ public:
 	std::vector<point_type> point_data_;
 	std::vector<segment_type> segment_data_;
 	std::set<point_type> segment_vertices;
+	float wheelbase = 0.33; // Distance (in meters) of rear axle to front axel
+	float distance_to_purepursuit_goal = 0.7; // Distance (in meters) between the rear axel and the goal point
 };
 
 
