@@ -511,11 +511,12 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 					 double y2 = it->y();
 					 double dx = x2 - x1;
 					 double dy = y2 - y1;
-					 double A = dx * dx;
+					 double A = dx * dx + dy * dy;
 					 double B = x1 * dx + y1 * dy;
 					 double C = x1 * x1 + y1 * y1 - distance_to_purepursuit_goal * distance_to_purepursuit_goal;
 					 double t = (-B + sqrt(B*B - A*C)) / A;
 					 OutGoalPoint = point_type(x1 + t * dx - wheelbase, y1 + t * dy);
+					 UE_LOG(LogTemp, Warning, TEXT("A: %f"), A);
 					 return true;
 				 }
 			 }
