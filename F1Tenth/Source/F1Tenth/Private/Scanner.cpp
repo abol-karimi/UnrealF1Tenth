@@ -5,9 +5,9 @@
 #include "Runtime/Engine/Public/DrawDebugHelpers.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
 
-#include "Runtime/Core/Public/Misc/Paths.h"
-#include <fstream>
-#include <iostream>
+//#include "Runtime/Core/Public/Misc/Paths.h"
+//#include <fstream>
+//#include <iostream>
 #include <vector>
 
 //static const std::size_t OBSTACLE_COLOR = 1;
@@ -516,7 +516,6 @@ bool UScanner::get_trackopening(point_type& OutTrackOpening, double min_gap) // 
 					 double C = x1 * x1 + y1 * y1 - distance_to_purepursuit_goal * distance_to_purepursuit_goal;
 					 double t = (-B + sqrt(B*B - A*C)) / A;
 					 OutGoalPoint = point_type(x1 + t * dx - wheelbase, y1 + t * dy);
-					 UE_LOG(LogTemp, Warning, TEXT("A: %f"), A);
 					 return true;
 				 }
 			 }
