@@ -5,9 +5,6 @@
 #include "Runtime/Engine/Public/DrawDebugHelpers.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
 
-//#include "Runtime/Core/Public/Misc/Paths.h"
-//#include <fstream>
-//#include <iostream>
 #include <vector>
 
 //static const std::size_t OBSTACLE_COLOR = 1;
@@ -71,7 +68,6 @@ void UScanner::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompone
 		DrawDebugSphere(GetWorld(), LidarToWorldLocation(PurePursuitGoal),
 			9.f, 5.f, FColor(100, 10, 10), false, 0.f, 0.f, 1.f);
 	}
-
 
 	// Draw circle corresponding to pure_pursuit lookahead distance (to rear axle)
 	DrawDebugCircle(GetWorld(), LidarToWorldLocation(point_type(-wheelbase, 0)),
