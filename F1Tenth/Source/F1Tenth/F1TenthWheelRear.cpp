@@ -13,8 +13,8 @@ UF1TenthWheelRear::UF1TenthWheelRear()
 
 	// Setup suspension forces
 	SuspensionForceOffset = -4.0f;
-	SuspensionMaxRaise = 8.0f;
-	SuspensionMaxDrop = 12.0f;
+	SuspensionMaxRaise = 0.01f;
+	SuspensionMaxDrop = 0.01f;
 	SuspensionNaturalFrequency = 9.0f;
 	SuspensionDampingRatio = 1.05f;
 

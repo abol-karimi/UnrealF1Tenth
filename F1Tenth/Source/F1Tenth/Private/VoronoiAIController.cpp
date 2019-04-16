@@ -48,6 +48,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
 	point_type track_opening;
 	point_type PurePursuitGoal;
+	float steering_ratio = 0.f;
 	if (!get_trackopening(track_opening, 1500.f)) // minimum 1500mm gap
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
@@ -61,14 +62,17 @@ void AVoronoiAIController::Tick(float DeltaTime)
 		// visualize the pure_pusuit goalpoint
 		DrawDebugSphere(GetWorld(), LidarToWorldLocation(PurePursuitGoal),
 			9.f, 5.f, FColor(100, 10, 10), false, 0.f, 0.f, 1.f);
-		ControlledVehicle->MoveRight(-pure_pursuit(PurePursuitGoal));
+		steering_ratio = -pure_pursuit(PurePursuitGoal);
+		ControlledVehicle->MoveRight(steering_ratio);
 	}
-
+	//prev_steering_ratio
 	// Draw circle corresponding to pure_pursuit lookahead distance (to rear axle)
 	DrawDebugCircle(GetWorld(), LidarToWorldLocation(point_type(-wheelbase, 0)),
 		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 0, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
 
-	ControlledVehicle->MoveForward(0.4);
+	//UE_LOG(LogTemp, Warning, TEXT("Steering ratio: %f"), steering_ratio);
+	float throttle = 0.6;//1 - sqrt(1 - (abs(steering_ratio) - 1)*(abs(steering_ratio) - 1)); // unit circle at (1,1) on steering-ratio coordinates
+	ControlledVehicle->MoveForward(throttle);
 	
 }
 
