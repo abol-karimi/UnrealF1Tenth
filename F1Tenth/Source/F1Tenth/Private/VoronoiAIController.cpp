@@ -71,7 +71,9 @@ void AVoronoiAIController::Tick(float DeltaTime)
 		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 0, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
 
 	//UE_LOG(LogTemp, Warning, TEXT("Steering ratio: %f"), steering_ratio);
-	float throttle = 0.65;//1 - sqrt(1 - (abs(steering_ratio) - 1)*(abs(steering_ratio) - 1)); // unit circle at (1,1) on steering-ratio coordinates
+	float forward_distance = 0;
+	GetDistanceAtAngle(forward_distance, 0);
+	float throttle = duty_cycle_from_distance(forward_distance);
 	ControlledVehicle->MoveForward(throttle);
 	
 }
@@ -575,4 +577,35 @@ float AVoronoiAIController::pure_pursuit(point_type goal_point)
 	}
 	// The steering command is in percentages
 	return steering_angle_deg/max_turn_degrees;
+}
+
+
+float AVoronoiAIController::duty_cycle_from_distance(float distance)
+{
+	/* Takes a forward distance and returns a duty cycle value to set the
+		car's velocity. Fairly unprincipled, basically just scales the speed
+		directly based on distance, and stops if the car is blocked. */
+	if (distance <= min_distance)
+	{
+		return 0.0;
+	}
+	if (distance >= no_obstacles_distance)
+	{
+		return absolute_max_speed;
+	}
+	if (distance >= max_distance)
+	{
+		return scale_speed_linearly(max_speed, absolute_max_speed, distance, max_distance, no_obstacles_distance);
+	}
+	return scale_speed_linearly(min_speed, max_speed, distance, min_distance, max_distance);
+}
+
+float AVoronoiAIController::scale_speed_linearly(float speed_low, float speed_high, float distance, float distance_low, float distance_high)
+{
+	/* Scales the speed linearly in [speed_low, speed_high] based on the
+		distance value, relative to the range[distance_low, distance_high]. */
+	float distance_range = distance_high - distance_low;
+	float ratio = (distance - distance_low) / distance_range;
+	float speed_range = speed_high - speed_low;
+	return speed_low + (speed_range * ratio);
 }

@@ -78,7 +78,9 @@ class F1TENTH_API AVoronoiAIController : public AAIController
 	bool isObstacle(point_type point);
 	bool get_closest_front_vertex(std::size_t& OutIndex, point_type point);
 	float pure_pursuit(point_type goal_point);
-
+	// Nathan's code:
+	float duty_cycle_from_distance(float distance);
+	float scale_speed_linearly(float speed_low, float speed_high, float distance, float distance_low, float distance_high);
 private:
 	AF1TenthPawn* ControlledVehicle = nullptr;
 
@@ -96,10 +98,28 @@ private:
 	std::vector<point_type> segment_vertices;
 	float wheelbase = 0.33; // Distance (in meters) of rear axle to front axel
 	float max_turn_degrees = 34;
-	float distance_to_purepursuit_goal = 0.9; // Distance (in meters) between the rear axel and the goal point
+	float distance_to_purepursuit_goal = 2; // Distance (in meters) between the rear axel and the goal point
 	float LidarMinDegree = -135;
 	float LidarMaxDegree = 135;
 	float prev_steering_ratio = 0;
+
+	// Nathan's variables
+	float min_speed = 0.1;
+	// The maximum speed the car will go(the absolute max for the motor is
+	// 0.5, which is *very* fast). 0.15 is a good max for slow testing.
+	float max_speed = 0.6; //.20
+	float absolute_max_speed = 0.68; 
+	// The forward distance at which the car will go its minimum speed.
+	// If there's not enough clearance in front of the car it will stop.
+	float min_distance = 0.35;
+	// The forward distance over which the car will go its maximum speed.
+	// Any distance between this and the minimum scales the speed linearly.
+	float max_distance = 3.0;
+	// The forward distance over which the car will go its *absolute
+	// maximum* speed.This distance indicates there are no obstacles in
+	// the near path of the car.Distance between this and the max_distance
+	// scales the speed linearly.
+	float no_obstacles_distance = 6.0;
 };
 
 
