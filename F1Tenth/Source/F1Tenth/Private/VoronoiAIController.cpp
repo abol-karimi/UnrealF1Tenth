@@ -71,7 +71,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 0, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
 
 	//UE_LOG(LogTemp, Warning, TEXT("Steering ratio: %f"), steering_ratio);
-	float forward_distance = 0;
+	float forward_distance = Range;
 	GetDistanceAtAngle(forward_distance, 0);
 	float throttle = duty_cycle_from_distance(forward_distance);
 	ControlledVehicle->MoveForward(throttle);
