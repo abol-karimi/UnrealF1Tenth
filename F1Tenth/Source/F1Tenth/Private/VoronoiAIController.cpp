@@ -145,8 +145,8 @@ void AVoronoiAIController::Polylinize()
 			x2 *= 1000.f;
 			y2 *= 1000.f;
 			segment_data_.push_back(segment_type(point_type(x1, y1), point_type(x2, y2))); // TODO what lp and hp? Any requiremtns on the order of points?
-			segment_vertices.insert(point_type(x1, y1));
-			segment_vertices.insert(point_type(x2, y2));
+			segment_vertices.push_back(point_type(x1, y1));
+			segment_vertices.push_back(point_type(x2, y2));
 		}
 	}
 }

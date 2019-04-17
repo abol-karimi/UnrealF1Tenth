@@ -93,7 +93,7 @@ private:
 	VD vd_;
 	std::vector<point_type> point_data_;
 	std::vector<segment_type> segment_data_;
-	std::set<point_type> segment_vertices;
+	std::vector<point_type> segment_vertices;
 	float wheelbase = 0.33; // Distance (in meters) of rear axle to front axel
 	float max_turn_degrees = 34;
 	float distance_to_purepursuit_goal = 0.9; // Distance (in meters) between the rear axel and the goal point
