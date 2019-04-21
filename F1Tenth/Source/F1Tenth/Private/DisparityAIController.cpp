@@ -62,7 +62,7 @@ void ADisparityAIController::Scan()
 		{
 			HitLocation = HitResult.Location;
 			if (MeasuringAngle >= -135 && MeasuringAngle <= 135) { // To control visualization range
-				DrawDebugLine(GetWorld(), LidarLocation, HitLocation, FColor(255, 0, 0), false, 0.f, 0.f, 0.f);
+				DrawDebugLine(GetWorld(), LidarLocation, HitLocation, FColor(255, 128, 192), false, 0.f, 0.f, 0.f);
 			}
 			lidar_distances[i] = (HitLocation - LidarLocation).Size() / 100; //divide by 100 to convert cm to meters
 		}
@@ -242,6 +242,18 @@ void ADisparityAIController::find_new_angle(float& OutDistance, float& OutAngle)
 	// Constrain the arc of possible angles we consider.
 	size_t min_sample_index = index_from_angle(min_considered_angle);
 	size_t max_sample_index = index_from_angle(max_considered_angle);
+
+	// visualize
+	for (size_t i = min_sample_index; i <= max_sample_index; i+=5)
+	{
+		float theta_deg = angle_from_index(i);
+		float theta_rad = PI * theta_deg / 180.f;
+		float r = masked_disparities[i];
+		float x = r * cos(theta_rad);
+		float y = r * sin(theta_rad);
+		DrawDebugSphere(GetWorld(), LidarToWorldLocation(x, y), 10.f, 10.f, FColor(255, 0, 0), false, 0.f, 0.f, 0.f);
+	}
+
 	std::vector<float> limited_values(max_sample_index-min_sample_index);
 	std::copy(masked_disparities.begin()+min_sample_index, masked_disparities.begin()+max_sample_index, limited_values.begin());
 	for (size_t i = 0; i < limited_values.size(); i++)
@@ -406,3 +418,8 @@ void ADisparityAIController::lidar_callback()
 }
 
 
+FVector ADisparityAIController::LidarToWorldLocation(float x, float y)
+{
+	FVector LocationInLidar = FVector(x * 100, y * 100, 0); // *100 to convert to cm
+	return LidarLocation + LidarXAxis * x * 100 + LidarYAxis * y * 100;
+}

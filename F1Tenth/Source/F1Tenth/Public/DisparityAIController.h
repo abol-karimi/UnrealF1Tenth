@@ -22,6 +22,7 @@ class F1TENTH_API ADisparityAIController : public AAIController
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	void Scan(); // Linetrace to sense distances
+	FVector LidarToWorldLocation(float x, float y);
 	
 	/* Holds configuration options and some state for controlling the car
 	using the simplified obstacle - bloating algorithm I'm calling "disparity
