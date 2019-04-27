@@ -502,7 +502,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 			{
 				// PathMaker gives points in meters
 				// UE_LOG(LogTemp, Warning, TEXT("*it: x: %f, y: %f"), (*it).x(), (*it).y());
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
+				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 0.f, 3.f);
 				if ((*it).x() > 0 // point in front of the car
 					&& euclidean_distance(*(it - 1), rear_axle) < distance_to_purepursuit_goal) // next point too close.
 					// TODO interpolate based on distance instead of giving an endpoint.

@@ -205,21 +205,38 @@ void PathMaker::construct_graph_from_vd(const VD& vd, Graph& g) {
 		if (it->color() == 1)
 			continue;
 		point_type vertex(it->x()/1000.f, it->y()/1000.f);
-		GNode* gNode = new GNode(vertex);
+		GNode* gNode = new GNode(vertex); // TODO delete GNode after the current frame
 		g.add_node(gNode);
 	}
 
-	for(const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it) {
-		if (it->is_finite() && it->is_primary()) {
+	for(const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it)
+	{
+		if (it->is_finite() && it->is_primary())
+		{
 			if (it->vertex0()->color() == 1 || it->vertex1()->color() == 1)
 				continue;
-			point_type vertex0(it->vertex0()->x()/1000.f, it->vertex0()->y()/1000.f);
-			point_type vertex1(it->vertex1()->x()/1000.f, it->vertex1()->y()/1000.f);
-			GNode* node0 = g.get_node(vertex0);
-			GNode* node1 = g.get_node(vertex1);
+			if (it->is_curved())
+			{
+				//point_type vertex0(it->vertex0()->x(), it->vertex0()->y());
+				//point_type vertex1(it->vertex1()->x(), it->vertex1()->y());
+				//std::vector<point_type> samples;
+				//samples.push_back(vertex0);
+				//samples.push_back(vertex1);
+				//sample_curved_edge(*it, &samples);
+				//for (std::size_t i = 0; i + 1 < samples.size(); ++i)
+				//{
+				//	point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
+				//	point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
+				//}
+
+			}
+			point_type point0(it->vertex0()->x()/1000.f, it->vertex0()->y()/1000.f);
+			point_type point1(it->vertex1()->x()/1000.f, it->vertex1()->y()/1000.f);
+			GNode* node0 = g.get_node(point0);
+			GNode* node1 = g.get_node(point1);
 			node0->_neighbors.push_back(node1);
 			node1->_neighbors.push_back(node0);
-			double weight = compute_distance(vertex0, vertex1);
+			double weight = compute_distance(point0, point1);
 			node0->_edge_weights.push_back(weight);
 			node1->_edge_weights.push_back(weight);
 		}
