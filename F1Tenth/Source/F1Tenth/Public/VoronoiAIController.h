@@ -100,7 +100,7 @@ private:
 	std::vector<point_type> segment_vertices;
 	float wheelbase = 0.33; // Distance (in meters) of rear axle to front axel
 	float max_turn_degrees = 34;
-	float distance_to_purepursuit_goal = 1; // Distance (in meters) between the rear axel and the goal point
+	float distance_to_purepursuit_goal = 1.1; // Distance (in meters) between the rear axel and the goal point
 	float LidarMinDegree = -135;
 	float LidarMaxDegree = 135;
 	float prev_steering_ratio = 0;
@@ -110,7 +110,7 @@ private:
 	// The maximum speed the car will go(the absolute max for the motor is
 	// 0.5, which is *very* fast). 0.15 is a good max for slow testing.
 	float max_speed = 0.6; //.20
-	float absolute_max_speed = 0.68; 
+	float absolute_max_speed = 0.6; 
 	// The forward distance at which the car will go its minimum speed.
 	// If there's not enough clearance in front of the car it will stop.
 	float min_distance = 0.35;
@@ -129,9 +129,9 @@ private:
 struct GNode {
 	point_type _vertex;
 	std::vector<GNode*> _neighbors;
-	std::vector<double> _edge_weights;
+	std::vector<float> _edge_weights;
 	bool _flag;
-	double _dist;
+	float _dist;
 	GNode* _parent;
 	GNode(point_type& v) {
 		_vertex = v;
@@ -177,7 +177,7 @@ class PathMaker
 {
 
 public:
-	PathMaker(double DiscontinuityThreshold)
+	PathMaker(float DiscontinuityThreshold)
 	{
 		_points.clear();
 		_segments.clear();
@@ -188,7 +188,7 @@ private:
 	VD _vd;
 	std::vector<point_type> _points;
 	std::vector<segment_type> _segments;
-	double _discontinuityThreshold;
+	float _discontinuityThreshold;
 protected:
 	point_type cast_to_point_type(const PointFloat& pf) {
 		int x1, y1;
@@ -206,7 +206,7 @@ protected:
 	void color_close_vertices(const VD&, const double);
 	void print_point_type(const point_type&);
 	void print_vertex_type(const vertex_type&);
-	bool sample_close_to_obstacle(const point_type&, const edge_type&, const double&);
+	bool sample_close_to_obstacle(const point_type&, const edge_type&, const float&);
 public:
 	int print_primary_edges();
 	void set_segments(std::vector<segment_type>& segments) {
@@ -223,8 +223,8 @@ public:
 	void construct_vd(const std::vector<PointFloat>&);
 	void construct_vd(const std::vector<SegmentFloat>&, const std::vector<PointFloat>&);
 	void count_and_color_cells();
-	double distance_to_line(const point_type&, const point_type&, const point_type&);
-	double distance_between_points(const point_type&, const point_type&);
+	float distance_to_line(const point_type&, const point_type&, const point_type&);
+	float distance_between_points(const point_type&, const point_type&);
 	bool get_path(std::vector<point_type>&, const point_type&, const point_type&);
 	bool get_path(std::vector<point_type>&, const VD&, const point_type&, const point_type&);
 	void sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge);
