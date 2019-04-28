@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include "Scanner.h"
+#include "../Public/Scanner.h"
 #include <math.h>
 #include "voronoi_visual_utils.hpp"
 using namespace std;
@@ -199,6 +199,36 @@ void PathMaker::color_close_vertices(const VD& vd) {
 	}
 }
 
+void PathMaker::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge)
+{
+	coordinate_type max_dist = 10;
+	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
+	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
+	voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+}
+
+point_type PathMaker::retrieve_point(const cell_type& cell)
+{
+	source_index_type index = cell.source_index();
+	source_category_type category = cell.source_category();
+	if (category == SOURCE_CATEGORY_SINGLE_POINT) {
+		return _points[index];
+	}
+	index -= _points.size();
+	if (category == SOURCE_CATEGORY_SEGMENT_START_POINT) {
+		return low(_segments[index]);
+	}
+	else {
+		return high(_segments[index]);
+	}
+}
+
+segment_type PathMaker::retrieve_segment(const cell_type& cell) {
+	source_index_type index = cell.source_index() - _points.size();
+	return _segments[index];
+}
+
+
 void PathMaker::construct_graph_from_vd(const VD& vd, Graph& g) {
 	color_close_vertices(vd);
 	for(const_vertex_iterator it = vd.vertices().begin(); it != vd.vertices().end(); ++it) {
@@ -217,28 +247,51 @@ void PathMaker::construct_graph_from_vd(const VD& vd, Graph& g) {
 				continue;
 			if (it->is_curved())
 			{
-				//point_type vertex0(it->vertex0()->x(), it->vertex0()->y());
-				//point_type vertex1(it->vertex1()->x(), it->vertex1()->y());
-				//std::vector<point_type> samples;
-				//samples.push_back(vertex0);
-				//samples.push_back(vertex1);
-				//sample_curved_edge(*it, &samples);
-				//for (std::size_t i = 0; i + 1 < samples.size(); ++i)
-				//{
-				//	point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
-				//	point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
-				//}
+				point_type point0(it->vertex0()->x(), it->vertex0()->y());
+				point_type point1(it->vertex1()->x(), it->vertex1()->y());
+
+				std::vector<point_type> samples;
+				samples.push_back(point0);
+				samples.push_back(point1);
+				sample_curved_edge(*it, &samples); // TODO add this function to PathMaker
+				
+				// Create graph nodes for each sample point except the end points
+				// since they have already been added in the graph before.
+				std::vector<point_type>::iterator it = samples.begin()+1;
+				for (; it != samples.end()-1; ++it) {
+					point_type sampled_pt(it->x() / 1000.f, it->y() / 1000.f);
+					GNode* gNode = new GNode(sampled_pt);
+					g.add_node(gNode);
+				}
+
+				// Iterate over all the sampled nodes for this edge and add
+				// their neighbors in the graph.
+				it = samples.begin();
+				for (; it+1 != samples.end(); ++it) {
+					point_type sampled_pt0(it->x() / 1000.f, it->y() / 1000.f);
+					point_type sampled_pt1((it+1)->x() / 1000.f, (it+1)->y() / 1000.f);
+					GNode* node0 = g.get_node(sampled_pt0);
+					GNode* node1 = g.get_node(sampled_pt1);
+					node0->_neighbors.push_back(node1);
+					node1->_neighbors.push_back(node0);
+					double weight = compute_distance(sampled_pt0, sampled_pt1);
+					node0->_edge_weights.push_back(weight);
+					node1->_edge_weights.push_back(weight);
+				}
+			}
+			else
+			{
+				point_type point0(it->vertex0()->x() / 1000.f, it->vertex0()->y() / 1000.f);
+				point_type point1(it->vertex1()->x() / 1000.f, it->vertex1()->y() / 1000.f);
+				GNode* node0 = g.get_node(point0);
+				GNode* node1 = g.get_node(point1);
+				node0->_neighbors.push_back(node1);
+				node1->_neighbors.push_back(node0);
+				double weight = compute_distance(point0, point1);
+				node0->_edge_weights.push_back(weight);
+				node1->_edge_weights.push_back(weight);
 
 			}
-			point_type point0(it->vertex0()->x()/1000.f, it->vertex0()->y()/1000.f);
-			point_type point1(it->vertex1()->x()/1000.f, it->vertex1()->y()/1000.f);
-			GNode* node0 = g.get_node(point0);
-			GNode* node1 = g.get_node(point1);
-			node0->_neighbors.push_back(node1);
-			node1->_neighbors.push_back(node0);
-			double weight = compute_distance(point0, point1);
-			node0->_edge_weights.push_back(weight);
-			node1->_edge_weights.push_back(weight);
 		}
 
 	}	

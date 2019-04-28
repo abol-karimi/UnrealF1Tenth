@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "VoronoiAIController.h"
+#include "../Public/VoronoiAIController.h"
 
 #include "Runtime/Engine/Public/DrawDebugHelpers.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
@@ -494,6 +494,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 		// If reached here, goalpoint is further than distance_to_purepursuit_goal
 		PathMaker pmaker;
 		pmaker.set_segments(segment_data_);
+		pmaker.set_points(point_data_);
 		std::vector<point_type> path;
 		bool found_path = pmaker.get_path(path, vd_, source_point, goal_point);
 		if (found_path)

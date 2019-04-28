@@ -197,6 +197,11 @@ public:
 		_segments.clear();
 		_segments = segments;
 	}
+
+	void set_points(std::vector<point_type>& points) {
+		_points.clear();
+		_points = points;
+	}
 	void construct_vd(const std::vector<SegmentFloat>&);
 	void construct_vd(const std::vector<PointFloat>&);
 	void construct_vd(const std::vector<SegmentFloat>&, const std::vector<PointFloat>&);

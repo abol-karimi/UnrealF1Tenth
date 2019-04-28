@@ -2,14 +2,16 @@
 
 #pragma once
 
-#include <boost/polygon/polygon.hpp>
-#include <boost/polygon/voronoi.hpp>
+#include "../boost/polygon/polygon.hpp"
+#include "../boost/polygon/voronoi.hpp"
 #include "voronoi_visual_utils.hpp"
 #include <set>
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Scanner.generated.h"
+
+class PathMaker;
 
 struct PointFloat {
 	float x;
@@ -61,7 +63,6 @@ protected:
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
 public:
 	void Scan(); // Linetrace to sense distances
 	void Polylinize(); // Converty raw distances to line segments
@@ -178,4 +179,7 @@ public:
 	double compute_distance(point_type&, point_type&);
 	bool get_path(std::vector<point_type>&, const point_type&, const point_type&);
 	bool get_path(std::vector<point_type>&, const VD&, const point_type&, const point_type&);
+	void sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge);
+	point_type retrieve_point(const cell_type& cell);
+	segment_type retrieve_segment(const cell_type& cell);
 };
