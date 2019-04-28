@@ -124,6 +124,17 @@ class Graph {
 private:
 	std::vector<GNode*> _nodes;
 public:
+	
+	Graph() {
+		_nodes.clear();
+	};
+
+	~Graph() {
+		std::vector<GNode*>::iterator n_it = _nodes.begin();
+		for (; n_it != _nodes.end(); ++n_it)
+			delete *n_it;
+	};
+
 	GNode* get_node(const point_type& v);
 	void add_node(GNode* node) {
 		_nodes.push_back(node);
@@ -163,9 +174,10 @@ protected:
 		return segment_type(lp, hp);
 	}
 	void construct_graph_from_vd(const VD&, Graph&);
-	void color_close_vertices(const VD&);
+	void color_close_vertices(const VD&, const double);
 	void print_point_type(const point_type&);
 	void print_vertex_type(const vertex_type&);
+	bool sample_close_to_obstacle(const point_type&, const edge_type&, const double&);
 public:
 	int print_primary_edges();
 	void set_segments(std::vector<segment_type>& segments) {
@@ -176,7 +188,8 @@ public:
 	void construct_vd(const std::vector<PointFloat>&);
 	void construct_vd(const std::vector<SegmentFloat>&, const std::vector<PointFloat>&);
 	void count_and_color_cells();
-	double compute_distance(point_type&, point_type&);
+	double distance_to_line(const point_type&, const point_type&, const point_type&);
+	double distance_between_points(const point_type&, const point_type&);
 	bool get_path(std::vector<point_type>&, const point_type&, const point_type&);
 	bool get_path(std::vector<point_type>&, const VD&, const point_type&, const point_type&);
 	void sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge);

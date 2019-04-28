@@ -81,7 +81,9 @@ class F1TENTH_API AVoronoiAIController : public AAIController
 	// Nathan's code:
 	float duty_cycle_from_distance(float distance);
 	float scale_speed_linearly(float speed_low, float speed_high, float distance, float distance_low, float distance_high);
+	
 private:
+	float DiscontinuityThreshold = 0.7; // cm
 	AF1TenthPawn* ControlledVehicle = nullptr;
 
 
@@ -98,7 +100,7 @@ private:
 	std::vector<point_type> segment_vertices;
 	float wheelbase = 0.33; // Distance (in meters) of rear axle to front axel
 	float max_turn_degrees = 34;
-	float distance_to_purepursuit_goal = 2; // Distance (in meters) between the rear axel and the goal point
+	float distance_to_purepursuit_goal = 1; // Distance (in meters) between the rear axel and the goal point
 	float LidarMinDegree = -135;
 	float LidarMaxDegree = 135;
 	float prev_steering_ratio = 0;
@@ -149,6 +151,17 @@ class Graph {
 private:
 	std::vector<GNode*> _nodes;
 public:
+
+	Graph() {
+		_nodes.clear();
+	};
+
+	~Graph() {
+		std::vector<GNode*>::iterator n_it = _nodes.begin();
+		for (; n_it != _nodes.end(); ++n_it)
+			delete *n_it;
+	};
+
 	GNode* get_node(const point_type& v);
 	void add_node(GNode* node) {
 		_nodes.push_back(node);
@@ -164,16 +177,18 @@ class PathMaker
 {
 
 public:
-	PathMaker()
+	PathMaker(double DiscontinuityThreshold)
 	{
 		_points.clear();
 		_segments.clear();
+		_discontinuityThreshold = DiscontinuityThreshold;
 	};
 
 private:
 	VD _vd;
 	std::vector<point_type> _points;
 	std::vector<segment_type> _segments;
+	double _discontinuityThreshold;
 protected:
 	point_type cast_to_point_type(const PointFloat& pf) {
 		int x1, y1;
@@ -188,9 +203,10 @@ protected:
 		return segment_type(lp, hp);
 	}
 	void construct_graph_from_vd(const VD&, Graph&);
-	void color_close_vertices(const VD&);
+	void color_close_vertices(const VD&, const double);
 	void print_point_type(const point_type&);
 	void print_vertex_type(const vertex_type&);
+	bool sample_close_to_obstacle(const point_type&, const edge_type&, const double&);
 public:
 	int print_primary_edges();
 	void set_segments(std::vector<segment_type>& segments) {
@@ -202,11 +218,16 @@ public:
 		_points.clear();
 		_points = points;
 	}
+
 	void construct_vd(const std::vector<SegmentFloat>&);
 	void construct_vd(const std::vector<PointFloat>&);
 	void construct_vd(const std::vector<SegmentFloat>&, const std::vector<PointFloat>&);
 	void count_and_color_cells();
-	double compute_distance(point_type&, point_type&);
+	double distance_to_line(const point_type&, const point_type&, const point_type&);
+	double distance_between_points(const point_type&, const point_type&);
 	bool get_path(std::vector<point_type>&, const point_type&, const point_type&);
 	bool get_path(std::vector<point_type>&, const VD&, const point_type&, const point_type&);
+	void sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge);
+	point_type retrieve_point(const cell_type& cell);
+	segment_type retrieve_segment(const cell_type& cell);
 };

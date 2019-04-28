@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include "../Public/Scanner.h"
+#include "../Public/VoronoiAIController.h"
 #include <math.h>
 #include "voronoi_visual_utils.hpp"
 using namespace std;
@@ -30,11 +30,23 @@ void Graph::add_edge(GNode* node1, GNode* node2) {
 	node2->_neighbors.push_back(node1);
 };
 
-double PathMaker::compute_distance(point_type& p1, point_type& p2) {
+double PathMaker::distance_between_points(const point_type& p1, const point_type& p2) {
 	double x_val = p1.x() - p2.x();
 	double y_val = p1.y() - p2.y();
 	double weight = sqrt(pow(x_val, 2) + pow(y_val, 2));
 	return weight;
+}
+
+// https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
+// Calculate distance of p0 to the line passing through p0 and p1
+double PathMaker::distance_to_line(const point_type& point, const point_type& p0, const point_type& p1)
+{
+	double delta_y = p1.y() - p0.y();
+	double delta_x = p1.x() - p0.x();
+	float denominator = distance_between_points(p0, p1);
+	float numerator_const_term = p1.x() * p0.y() - p1.y() * p0.x();
+	float numerator = abs(delta_y * point.x() - delta_x * point.y() + numerator_const_term);
+	return (numerator / denominator);
 }
 
 void PathMaker::construct_vd(const std::vector<SegmentFloat>& floatsegments, const std::vector<PointFloat>& floatpoints) {
@@ -95,62 +107,6 @@ void PathMaker::count_and_color_cells() {
   std::cout << "Number of closed cells " << _vd.cells().size() - open_cells << std::endl;
 };
 
-#if 0
-bool PathMaker::check_obs_proximity(const vertex_type& v, const VD& vd) {
-
-	const edge_type* v_edge = v.incident_edge();
-
-	const cell_type* v_cell = v_edge->cell();
-	point_type v_point(v.x()/1000.f, v.y()/1000.f);
-	std::cout << v_point.x() << "," << v_point.y() << std::endl;
-	
-	if (v_edge->is_finite()) {
-		std::cout << " Edge is finite " << std::endl;
-		const vertex_type* e_vertex0 = v_edge->vertex0();
-		const vertex_type* e_vertex1 = v_edge->vertex1();
-		point_type v0(e_vertex0->x()/1000.f, e_vertex0->y()/1000.f);
-		point_type v1(e_vertex1->x()/1000.f, e_vertex1->y()/1000.f);
-		std::cout << v0.x() << "," << v0.y() << std::endl;
-		std::cout << v1.x() << "," << v1.y() << std::endl;
-	}
-	else
-		std::cout << " Edge is infinite " << std::endl;
-	
-	std::size_t index = v_cell->source_index();
-
-	if (v_cell->contains_segment()) {
-		point_type p0 = low(_segments[index]);
-		p0 = point_type(p0.x()/1000.f, p0.y()/1000.f);
-		point_type p1 = high(_segments[index]);
-		p1 = point_type(p1.x()/1000.f, p1.y()/1000.f);
-		if (v_cell->source_category() == boost::polygon::SOURCE_CATEGORY_SEGMENT_START_POINT) {
-			std::cout << "Source category with index " << index << std::endl;
-			std::cout << p0.x() << "," << p0.y() << std::endl;
-		}
-		else if( v_cell->source_category() == boost::polygon::SOURCE_CATEGORY_SEGMENT_END_POINT) {
-			std::cout << "End category" << std::endl;
-			std::cout << p0.x() << "," << p0.y() << std::endl;
-		}
-		else {
-			std::cout << " Contains Segment with index " << index << std::endl;
-			std::cout << p0.x() << "," << p0.y() << std::endl;
-			std::cout << p1.x() << "," << p1.y() << std::endl;
-			double d1 = compute_distance(v_point, p0);
-			double d2 = compute_distance(v_point, p1);
-			std::cout << "distances from segment: " << d1 << "," << d2 << std::endl;
-		}
-	}
-	else if (v_cell->contains_point()) {
-		std::cout << "Contains point with index " << index << std::endl;
-		std::cout << " No. of input points " << _points.size() << std::endl;
-	}
-	else
-		std::cout << "Degenerate cell." << std::endl;
-
-	return true;
-}
-#endif
-
 void PathMaker::print_point_type(const point_type& point) {
 	std::cout << "Point: (" << point.x() << ", " << point.y() << ")" << std::endl;
 }
@@ -160,41 +116,33 @@ void PathMaker::print_vertex_type(const vertex_type& vertex) {
 	std::cout << "Vertex: (" << v_point.x() << ", " << v_point.y() << ")" << std::endl;
 }
 
-void PathMaker::color_close_vertices(const VD& vd) {
+void PathMaker::color_close_vertices(const VD& vd, const double allowed_obs_dist) {
 
-	double allowed_obs_dist = 0.3;
-	for(const_vertex_iterator it = vd.vertices().begin(); it != vd.vertices().end(); ++it) 
-		it->color(0);
+	//double allowed_obs_dist = 0.3;
+	for(const_vertex_iterator it_v = vd.vertices().begin(); it_v != vd.vertices().end(); ++it_v) 
+		it_v->color(0);
 
-	for(const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it) {
-	
-		if (it->is_finite() && it->is_primary()) {
-			const vertex_type* e_vertex0 = it->vertex0();
-			const vertex_type* e_vertex1 = it->vertex1();
+	for(const_edge_iterator it_e = vd.edges().begin(); it_e != vd.edges().end(); ++it_e) {
+		const edge_type edge = *it_e;
+		if (edge.is_finite() && edge.is_primary()) {
+			const vertex_type* e_vertex0 = edge.vertex0();
+			const vertex_type* e_vertex1 = edge.vertex1();
 			if ((e_vertex0->color() == 1) || (e_vertex1->color() == 1))
 				continue;
 			point_type v0(e_vertex0->x()/1000.f, e_vertex0->y()/1000.f);
 			point_type v1(e_vertex1->x()/1000.f, e_vertex1->y()/1000.f);
-			const cell_type* edge_cell = it->cell();
-			std::size_t index = edge_cell->source_index();
+			const cell_type* edge_cell = edge.cell();
+			point_type point = edge_cell->contains_point() ? retrieve_point(*edge_cell) : retrieve_point(*edge.twin()->cell());
+			segment_type segment = edge_cell->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge_cell);
+			point_type p0 = low(segment);
+			p0 = point_type(p0.x() / 1000.f, p0.y() / 1000.f);
+			point_type p1 = high(segment);
+			p1 = point_type(p1.x() / 1000.f, p1.y() / 1000.f);
 
-			if (edge_cell->contains_segment()) {
-				if (edge_cell->source_category() !=
-					boost::polygon::SOURCE_CATEGORY_SEGMENT_START_POINT &&
-					edge_cell->source_category() !=
-						boost::polygon::SOURCE_CATEGORY_SEGMENT_END_POINT) {
-						point_type p0 = low(_segments[index]);
-						p0 = point_type(p0.x() / 1000.f, p0.y() / 1000.f);
-						point_type p1 = high(_segments[index]);
-						p1 = point_type(p1.x() / 1000.f, p1.y() / 1000.f);
-
-						//std::cout << "Distances: " << d1 << ", " << d2 << ", " << d3 << ", " << d4 << std::endl;
-						if (compute_distance(v0, p0) < allowed_obs_dist || compute_distance(v0, p1) < allowed_obs_dist)
-							e_vertex0->color(1);
-					if (compute_distance(v1, p0) < allowed_obs_dist || compute_distance(v1, p1) < allowed_obs_dist)
-						e_vertex1->color(1);
-				}
-			}
+			if (distance_to_line(v0, p0, p1) < allowed_obs_dist || distance_between_points(v0, point) < allowed_obs_dist)
+				e_vertex0->color(1);
+			if (distance_to_line(v1, p0, p1) < allowed_obs_dist || distance_between_points(v1, point) < allowed_obs_dist)
+				e_vertex1->color(1);
 		}
 	}
 }
@@ -228,66 +176,90 @@ segment_type PathMaker::retrieve_segment(const cell_type& cell) {
 	return _segments[index];
 }
 
+bool PathMaker::sample_close_to_obstacle(const point_type& sample, const edge_type& edge, const double& allowed_obs_dist) {
+	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
+	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
+	point_type p0 = low(segment);
+	p0 = point_type(p0.x() / 1000.f, p0.y() / 1000.f);
+	point_type p1 = high(segment);
+	p1 = point_type(p1.x() / 1000.f, p1.y() / 1000.f);
+
+	if (distance_to_line(sample, p0, p1) < allowed_obs_dist || distance_between_points(sample, point) < allowed_obs_dist)
+		return true;
+	else
+		return false;
+}
 
 void PathMaker::construct_graph_from_vd(const VD& vd, Graph& g) {
-	color_close_vertices(vd);
-	for(const_vertex_iterator it = vd.vertices().begin(); it != vd.vertices().end(); ++it) {
-		if (it->color() == 1)
+	double allowed_obs_dist = _discontinuityThreshold/2;
+	color_close_vertices(vd, allowed_obs_dist);
+	for(const_vertex_iterator it_v = vd.vertices().begin(); it_v != vd.vertices().end(); ++it_v) {
+		if (it_v->color() == 1)
 			continue;
-		point_type vertex(it->x()/1000.f, it->y()/1000.f);
+		point_type vertex(it_v->x()/1000.f, it_v->y()/1000.f);
 		GNode* gNode = new GNode(vertex); // TODO delete GNode after the current frame
 		g.add_node(gNode);
 	}
 
-	for(const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it)
+	for(const_edge_iterator it_e = vd.edges().begin(); it_e != vd.edges().end(); ++it_e)
 	{
-		if (it->is_finite() && it->is_primary())
+		if (it_e->is_finite() && it_e->is_primary())
 		{
-			if (it->vertex0()->color() == 1 || it->vertex1()->color() == 1)
+			if (it_e->vertex0()->color() == 1 || it_e->vertex1()->color() == 1)
 				continue;
-			if (it->is_curved())
+			if (it_e->is_curved())
 			{
-				point_type point0(it->vertex0()->x(), it->vertex0()->y());
-				point_type point1(it->vertex1()->x(), it->vertex1()->y());
+				point_type point0(it_e->vertex0()->x(), it_e->vertex0()->y());
+				point_type point1(it_e->vertex1()->x(), it_e->vertex1()->y());
 
 				std::vector<point_type> samples;
 				samples.push_back(point0);
 				samples.push_back(point1);
-				sample_curved_edge(*it, &samples); // TODO add this function to PathMaker
+				sample_curved_edge(*it_e, &samples); // TODO add this function to PathMaker
 				
 				// Create graph nodes for each sample point except the end points
 				// since they have already been added in the graph before.
-				std::vector<point_type>::iterator it = samples.begin()+1;
-				for (; it != samples.end()-1; ++it) {
-					point_type sampled_pt(it->x() / 1000.f, it->y() / 1000.f);
-					GNode* gNode = new GNode(sampled_pt);
-					g.add_node(gNode);
+				std::size_t idx_s = 1;
+				//std::vector<point_type>::iterator it_s = samples.begin()+1;
+				for ( ; idx_s < samples.size(); ++idx_s) {
+					point_type sample_pt(samples[idx_s].x() / 1000.f, samples[idx_s].y() / 1000.f);
+					if (sample_close_to_obstacle(sample_pt, *it_e, allowed_obs_dist) == false) {
+							GNode* gNode = new GNode(sample_pt);
+							g.add_node(gNode);
+					}
+					else {
+						++idx_s;
+						break;
+					}
 				}
 
+				std::size_t closest_sample_idx = idx_s;
 				// Iterate over all the sampled nodes for this edge and add
 				// their neighbors in the graph.
-				it = samples.begin();
-				for (; it+1 != samples.end(); ++it) {
-					point_type sampled_pt0(it->x() / 1000.f, it->y() / 1000.f);
-					point_type sampled_pt1((it+1)->x() / 1000.f, (it+1)->y() / 1000.f);
-					GNode* node0 = g.get_node(sampled_pt0);
-					GNode* node1 = g.get_node(sampled_pt1);
+				
+				idx_s = 0;
+				for (; idx_s < closest_sample_idx; ++idx_s) {
+					point_type sample_pt0(samples[idx_s].x() / 1000.f, samples[idx_s].y() / 1000.f);
+					point_type sample_pt1(samples[idx_s+1].x() / 1000.f, samples[idx_s+1].y() / 1000.f);
+					GNode* node0 = g.get_node(sample_pt0);
+					GNode* node1 = g.get_node(sample_pt1);
+					if (node1 == NULL) break;
 					node0->_neighbors.push_back(node1);
 					node1->_neighbors.push_back(node0);
-					double weight = compute_distance(sampled_pt0, sampled_pt1);
+					double weight = distance_between_points(sample_pt0, sample_pt1);
 					node0->_edge_weights.push_back(weight);
 					node1->_edge_weights.push_back(weight);
 				}
 			}
 			else
 			{
-				point_type point0(it->vertex0()->x() / 1000.f, it->vertex0()->y() / 1000.f);
-				point_type point1(it->vertex1()->x() / 1000.f, it->vertex1()->y() / 1000.f);
+				point_type point0(it_e->vertex0()->x() / 1000.f, it_e->vertex0()->y() / 1000.f);
+				point_type point1(it_e->vertex1()->x() / 1000.f, it_e->vertex1()->y() / 1000.f);
 				GNode* node0 = g.get_node(point0);
 				GNode* node1 = g.get_node(point1);
 				node0->_neighbors.push_back(node1);
 				node1->_neighbors.push_back(node0);
-				double weight = compute_distance(point0, point1);
+				double weight = distance_between_points(point0, point1);
 				node0->_edge_weights.push_back(weight);
 				node1->_edge_weights.push_back(weight);
 

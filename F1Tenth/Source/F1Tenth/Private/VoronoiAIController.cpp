@@ -49,7 +49,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	point_type track_opening;
 	point_type PurePursuitGoal;
 	float steering_ratio = 0.f;
-	if (!get_trackopening(track_opening, 1500.f)) // minimum 1500mm gap
+	if (!get_trackopening(track_opening, DiscontinuityThreshold*1000)) // minimum 1500mm gap
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
 	}
@@ -123,7 +123,7 @@ void AVoronoiAIController::Polylinize()
 
 	SegmentFloat NewSegment(0, 0, 10, 10);
 	float NewStartAngle = -135;
-	float DiscontinuityThreshold = 1; // Unit is meters.
+	//float DiscontinuityThreshold = 1; // Unit is meters.
 	float StepAngle = 2; // Unit is degrees.
 	while (NewStartAngle < 135)
 	{
@@ -492,7 +492,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 			8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
 
 		// If reached here, goalpoint is further than distance_to_purepursuit_goal
-		PathMaker pmaker;
+		PathMaker pmaker(DiscontinuityThreshold);
 		pmaker.set_segments(segment_data_);
 		pmaker.set_points(point_data_);
 		std::vector<point_type> path;
