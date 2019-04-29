@@ -49,7 +49,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	point_type track_opening;
 	point_type PurePursuitGoal;
 	float steering_ratio = 0.f;
-	if (!get_trackopening(track_opening, DiscontinuityThreshold*1000)) // minimum 1500mm gap
+	if (!get_trackopening(track_opening, DiscontinuityThreshold*1000)) // convert to mm
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
 	}
@@ -339,7 +339,7 @@ void AVoronoiAIController::DrawVD()
 			{
 				point_type vertex0(it->vertex0()->x() / 1000.f, it->vertex0()->y() / 1000.f);
 				point_type vertex1(it->vertex1()->x() / 1000.f, it->vertex1()->y() / 1000.f);
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
+				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(0, 0, 255), false, 0.f, 0.f, 10.f);
 			}
 			else if (it->is_curved())
 			{
@@ -353,7 +353,7 @@ void AVoronoiAIController::DrawVD()
 				{
 					point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
 					point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
-					DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 255), false, 0.f, 0.f, 5.f);
+					DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 255), false, 0.f, 0.f, 10.f);
 				}
 			}
 		}

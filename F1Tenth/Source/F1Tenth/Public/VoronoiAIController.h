@@ -110,7 +110,7 @@ private:
 	// The maximum speed the car will go(the absolute max for the motor is
 	// 0.5, which is *very* fast). 0.15 is a good max for slow testing.
 	float max_speed = 0.6; //.20
-	float absolute_max_speed = 0.6; 
+	float absolute_max_speed = 0.65; 
 	// The forward distance at which the car will go its minimum speed.
 	// If there's not enough clearance in front of the car it will stop.
 	float min_distance = 0.35;
