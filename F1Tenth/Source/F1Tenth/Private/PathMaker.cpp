@@ -1,13 +1,15 @@
+#include "PathMaker.h"
+#include "../Public/VoronoiAIController.h"
+
 #include <cstdio>
 #include <vector>
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include "../Public/VoronoiAIController.h"
 #include <math.h>
-#include "voronoi_visual_utils.hpp"
+
 using namespace std;
-class Graph;
+
 
 GNode* Graph::get_node(const point_type& v) {
 	bool found = false;
