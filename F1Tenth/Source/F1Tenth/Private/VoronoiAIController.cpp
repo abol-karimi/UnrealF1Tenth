@@ -62,14 +62,15 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	{
 		// visualize the pure_pusuit goalpoint
 		DrawDebugSphere(GetWorld(), LidarToWorldLocation(PurePursuitGoal),
-			9.f, 5.f, FColor(100, 10, 10), false, 0.f, 0.f, 1.f);
+			9.f, 5.f, FColor(100, 10, 10), false, 0.f, 30.f, 2.2f);
 		steering_ratio = -pure_pursuit(PurePursuitGoal);
 		ControlledVehicle->MoveRight(steering_ratio);
 	}
 	//prev_steering_ratio
 	// Draw circle corresponding to pure_pursuit lookahead distance (to rear axle)
-	DrawDebugCircle(GetWorld(), LidarToWorldLocation(point_type(-wheelbase, 0)),
-		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 0, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
+	DrawDebugCircle(GetWorld(),
+		ControlledVehicle->GetActorLocation() - 0.5f*wheelbase*100.f*ControlledVehicle->GetActorForwardVector(),
+		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 30, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
 
 	//UE_LOG(LogTemp, Warning, TEXT("Steering ratio: %f"), steering_ratio);
 	float forward_distance = Range;
@@ -124,7 +125,6 @@ void AVoronoiAIController::Polylinize()
 
 	SegmentFloat NewSegment(0, 0, 10, 10);
 	float NewStartAngle = -135;
-	//float DiscontinuityThreshold = 1; // Unit is meters.
 	float StepAngle = 2; // Unit is degrees.
 	while (NewStartAngle < 135)
 	{
@@ -142,7 +142,7 @@ void AVoronoiAIController::Polylinize()
 			DrawDebugLine(
 				GetWorld(),
 				LidarToWorldLocation(point_type(x1, y1)),
-				LidarToWorldLocation(point_type(x2, y2)), FColor(0, 255, 0), false, 0.f, 0.f, 5.f);
+				LidarToWorldLocation(point_type(x2, y2)), FColor(0, 255, 0), false, 0.f, 1.f, 10.f);
 			x1 *= 1000.f;
 			y1 *= 1000.f;
 			x2 *= 1000.f;
@@ -253,7 +253,7 @@ bool AVoronoiAIController::GetSegment(SegmentFloat& OutSegment, float& OutStartA
 			//UE_LOG(LogTemp, Warning, TEXT("Distance(EndPoint, CandidEndPoint) > DiscontinuityThreshold"));
 			return true; // Found a segment
 		}
-		else if (DistanceToLine(CandidEndPoint, StartPoint, InterPoint) > 0.4)
+		else if (DistanceToLine(CandidEndPoint, StartPoint, InterPoint) > 0.1) // TODO: Expose 0.4 as a class property
 		{
 			// Finalize the segment with the current EndAngle and EndPoint
 			OutSegment.p0 = StartPoint;
@@ -336,11 +336,15 @@ void AVoronoiAIController::DrawVD()
 	{
 		if (it->is_finite() && it->is_primary())
 		{
+			if (isObstacle(point_type(it->vertex0()->x(), it->vertex0()->y())))
+				continue;
+			else if (isObstacle(point_type(it->vertex1()->x(), it->vertex1()->y())))
+				continue;
 			if (it->is_linear())
 			{
 				point_type vertex0(it->vertex0()->x() / 1000.f, it->vertex0()->y() / 1000.f);
 				point_type vertex1(it->vertex1()->x() / 1000.f, it->vertex1()->y() / 1000.f);
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(0, 0, 255), false, 0.f, 0.f, 10.f);
+				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(64, 64, 255), false, 0.f, 5.f, 10.f);
 			}
 			else if (it->is_curved())
 			{
@@ -354,7 +358,7 @@ void AVoronoiAIController::DrawVD()
 				{
 					point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
 					point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
-					DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 255), false, 0.f, 0.f, 10.f);
+					DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 64), false, 0.f, 5.f, 10.f);
 				}
 			}
 		}
@@ -365,7 +369,7 @@ void AVoronoiAIController::DrawVD()
 		{
 			point_type vertex(it->x() / 1000.f, it->y() / 1000.f);
 			DrawDebugSphere(GetWorld(), LidarToWorldLocation(vertex),
-				5.f, 5.f, FColor(0, 0, 0), false, 0.f, 0.f, 1.f);
+				15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
 		}
 	}
 
@@ -402,7 +406,7 @@ bool AVoronoiAIController::get_trackopening(point_type& OutTrackOpening, double 
 		OutTrackOpening = discontinuities[max_cos_index];
 		DrawDebugSphere(GetWorld(),
 			LidarToWorldLocation(point_type(OutTrackOpening.x() / 1000.f, OutTrackOpening.y() / 1000.f)),
-			15.f, 10.f, FColor(255, 255, 0), false, 0.f, 0.f, 1.f);
+			15.f, 10.f, FColor(255, 255, 0), false, 0.f, 15.f, 1.f);
 		return true;
 	}
 	else { return false; }
@@ -473,6 +477,8 @@ bool AVoronoiAIController::get_closest_front_vertex(std::size_t& OutIndex, point
 
 bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_type track_opening)
 {
+	// OutGoalPoint is in lidar coordinates
+
 	std::size_t goal_index;
 	std::size_t source_index;
 	if (get_closest_vertex(goal_index, track_opening) && get_closest_front_vertex(source_index, point_type(0, 0)))
@@ -487,12 +493,12 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 		}
 
 		DrawDebugSphere(GetWorld(), LidarToWorldLocation(source_point),
-			8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
+			8.f, 5.f, FColor(0, 255, 0), false, 0.f, 15.f, 2.1f);
 
 		DrawDebugSphere(GetWorld(), LidarToWorldLocation(goal_point),
-			8.f, 5.f, FColor(100, 100, 100), false, 0.f, 0.f, 1.f);
+			8.f, 5.f, FColor(0, 255, 0), false, 0.f, 15.f, 2.1f);
 
-		// If reached here, goalpoint is further than distance_to_purepursuit_goal
+		// If reached here, goalpoint from real axel is further than distance_to_purepursuit_goal meters
 		PathMaker pmaker(DiscontinuityThreshold);
 		pmaker.set_segments(segment_data_);
 		pmaker.set_points(point_data_);
@@ -504,7 +510,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 			{
 				// PathMaker gives points in meters
 				// UE_LOG(LogTemp, Warning, TEXT("*it: x: %f, y: %f"), (*it).x(), (*it).y());
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 0.f, 3.f);
+				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 20.f, 3.f);
 				if ((*it).x() > 0 // point in front of the car
 					&& euclidean_distance(*(it - 1), rear_axle) < distance_to_purepursuit_goal) // next point too close.
 					// TODO interpolate based on distance instead of giving an endpoint.
@@ -519,7 +525,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 					double B = x1 * dx + y1 * dy;
 					double C = x1 * x1 + y1 * y1 - distance_to_purepursuit_goal * distance_to_purepursuit_goal;
 					double t = (-B + sqrt(B*B - A * C)) / A;
-					OutGoalPoint = point_type(x1 + t * dx - wheelbase, y1 + t * dy);
+					OutGoalPoint = point_type(x1 + t * dx - wheelbase, y1 + t * dy); // Convert back to lidar coordinates
 					return true;
 				}
 			}
@@ -558,14 +564,16 @@ bool AVoronoiAIController::isObstacle(point_type point) // input point in millim
 
 float AVoronoiAIController::pure_pursuit(point_type goal_point)
 {
+	// goalpoint is in lidar's coordinates
 	// goalpoint_angle_rad is alpha in CMU's formulation
 	// goalpoint_angle_rad must be in(-pi / 2, pi / 2)
 	// wheelbase is the distance(in meters) between the rear and front axels
 	// distance_to_goalpoint is the distance(in meters) between the rear axel and the goal point
 	// distance_to_goalpoint must be positive
 
-	double goalpoint_angle_rad = atan(goal_point.y() / (goal_point.x()+wheelbase));
-	double steering_angle_rad = atan(2 * wheelbase * sin(goalpoint_angle_rad) / distance_to_purepursuit_goal);
+	//double goalpoint_angle_rad = atan(goal_point.y() / (goal_point.x()+wheelbase));
+	double d2 = distance_to_purepursuit_goal * distance_to_purepursuit_goal;
+	double steering_angle_rad = atan(2 * wheelbase * goal_point.y() / d2);
 	double steering_angle_deg = steering_angle_rad * 180.f / PI;
 
 		// The wheels cannot physically turn more than 34 degrees

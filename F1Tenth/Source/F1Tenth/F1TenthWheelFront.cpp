@@ -9,7 +9,7 @@ UF1TenthWheelFront::UF1TenthWheelFront()
 	ShapeRadius = 18.f;
 	ShapeWidth = 15.0f;
 	bAffectedByHandbrake = false;
-	SteerAngle = 40.f;
+	SteerAngle = 34.f;
 
 	// Setup suspension forces
 	SuspensionForceOffset = -4.0f;

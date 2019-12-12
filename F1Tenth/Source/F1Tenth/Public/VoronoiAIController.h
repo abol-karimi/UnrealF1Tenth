@@ -60,9 +60,9 @@ private:
 	std::vector<point_type> point_data_;
 	std::vector<segment_type> segment_data_;
 	std::vector<point_type> segment_vertices;
-	float wheelbase = 0.33; // Distance (in meters) of rear axle to front axel
+	float wheelbase = 0.3; // Distance (in meters) of rear axle to front axel
 	float max_turn_degrees = 34;
-	float distance_to_purepursuit_goal = 1.1; // Distance (in meters) between the rear axel and the goal point
+	float distance_to_purepursuit_goal = 2.0; // Distance (in meters) between the rear axel and the goal point
 	float LidarMinDegree = -135;
 	float LidarMaxDegree = 135;
 	float prev_steering_ratio = 0;
@@ -71,8 +71,8 @@ private:
 	float min_speed = 0.1;
 	// The maximum speed the car will go(the absolute max for the motor is
 	// 0.5, which is *very* fast). 0.15 is a good max for slow testing.
-	float max_speed = 0.6; //.20
-	float absolute_max_speed = 0.65; 
+	float max_speed = 0.5; //.60
+	float absolute_max_speed = 0.6; // 0.65
 	// The forward distance at which the car will go its minimum speed.
 	// If there's not enough clearance in front of the car it will stop.
 	float min_distance = 0.35;
