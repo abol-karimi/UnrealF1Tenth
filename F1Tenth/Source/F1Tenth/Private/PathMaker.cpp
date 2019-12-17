@@ -197,7 +197,7 @@ void PathMaker::color_close_vertices(const VD& vd, const double allowed_obs_dist
 
 void PathMaker::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge)
 {
-	coordinate_type max_dist = 10;
+	coordinate_type max_dist = 300;
 	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
 	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
 	voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);

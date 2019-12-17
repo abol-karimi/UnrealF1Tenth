@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "WheeledVehicle.h"
+
+#include "LidarComponent.h"
+
 #include "F1TenthPawn.generated.h"
 
 class UPhysicalMaterial;
@@ -144,4 +147,8 @@ public:
 	FORCEINLINE UTextRenderComponent* GetInCarGear() const { return InCarGear; }
 	/** Returns EngineSoundComponent subobject **/
 	FORCEINLINE UAudioComponent* GetEngineSoundComponent() const { return EngineSoundComponent; }
+
+private:
+	ULidarComponent* LidarComponent = nullptr;
+
 };

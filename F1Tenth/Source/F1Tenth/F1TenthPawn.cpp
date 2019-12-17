@@ -174,6 +174,12 @@ AF1TenthPawn::AF1TenthPawn()
 
 	bIsLowFriction = false;
 	bInReverseGear = false;
+
+	// Add Lidar sensor
+	LidarComponent = CreateDefaultSubobject<ULidarComponent>(TEXT("LidarSensor"));
+	LidarComponent->SetupAttachment(RootComponent);
+	LidarComponent->SetRelativeLocation(FVector(75.f, 0.f, 48.f));
+	LidarComponent->SetRelativeScale3D(FVector(0.2f, 0.2f, 0.2f));
 }
 
 void AF1TenthPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)

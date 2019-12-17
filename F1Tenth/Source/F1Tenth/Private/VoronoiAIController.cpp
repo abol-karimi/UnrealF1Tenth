@@ -2,6 +2,7 @@
 
 #include "../Public/VoronoiAIController.h"
 #include "PathMaker.h"
+#include "LidarComponent.h"
 
 #include "Runtime/Engine/Public/DrawDebugHelpers.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
@@ -18,6 +19,19 @@ void AVoronoiAIController::BeginPlay()
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("VoronoiAIController possesing: %s"), *(ControlledVehicle->GetName()));
+
+		// Connect to vehicle's lidar sensor
+		TArray<ULidarComponent*> Lidars;
+		ControlledVehicle->GetComponents<ULidarComponent>(Lidars);
+		if (Lidars.Num() == 1)
+		{
+			Lidar = Lidars[0];
+			UE_LOG(LogTemp, Warning, TEXT("VoronoiAIController connected to lidar sensor."));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("VoronoiAIController did not find lidar sensor!"));
+		}
 	}
 }
 
@@ -28,20 +42,19 @@ void AVoronoiAIController::Tick(float DeltaTime)
 
 	// TODO: Skip frame if Deltatime < 25ms (frequency of lidar is 40Hz)
 
-	LidarXAxis = ControlledVehicle->GetActorForwardVector();
-	LidarYAxis = -ControlledVehicle->GetActorRightVector();
-	LidarZAxis = ControlledVehicle->GetActorUpVector();
-	LidarLocation = ControlledVehicle->GetActorLocation() + LidarXAxis * 15 + LidarZAxis * 16;
-	
+	LidarLocation = Lidar->GetComponentLocation();
+	LidarXAxis = Lidar->GetForwardVector();
+	LidarYAxis = -Lidar->GetRightVector();
+	LidarZAxis = Lidar->GetUpVector();
 	// Linetrace to gather lidar measurements
-	Scan();
+	Lidar->Scan();
 
 	// Make a set of polylines out of lidar 2D point cloud
-	Polylinize();
+	Lidar->Polylinize(VDInputLineSegments);
 
 	// Make a voronoi diagram
-	vd_.clear();
-	construct_voronoi(segment_data_.begin(), segment_data_.end(), &vd_);
+	VDiagram.clear();
+	construct_voronoi(VDInputLineSegments.begin(), VDInputLineSegments.end(), &VDiagram);
 
 	// Visualize the voronoi diagram (stored in vd_)
 	DrawVD();
@@ -73,208 +86,9 @@ void AVoronoiAIController::Tick(float DeltaTime)
 		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 30, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
 
 	//UE_LOG(LogTemp, Warning, TEXT("Steering ratio: %f"), steering_ratio);
-	float forward_distance = Range;
-	GetDistanceAtAngle(forward_distance, 0);
-	float throttle = duty_cycle_from_distance(forward_distance);
-	ControlledVehicle->MoveForward(throttle);
+	ControlledVehicle->MoveForward(0.45);
 	
 }
-
-
-void AVoronoiAIController::Scan()
-{
-	if (!ControlledVehicle)
-	{
-		return;
-	}
-	FHitResult HitResult;
-	FVector HitLocation;
-	for (int i = 0; i < 1081; i++)
-	{
-		float MeasuringAngle = -135 + i * AngularResolution;
-		const FRotator Rot(0, -MeasuringAngle, 0);
-		FVector MeasuringDirection = Rot.RotateVector(LidarXAxis);
-		auto EndLocation = LidarLocation + MeasuringDirection * Range * 100; // *100 to convert to cm
-
-		if (GetWorld()->LineTraceSingleByChannel(
-			HitResult,
-			LidarLocation,
-			EndLocation,
-			ECollisionChannel::ECC_Visibility)
-			)
-		{
-			HitLocation = HitResult.Location;
-			if (MeasuringAngle >= -135 && MeasuringAngle <= 135) { // To control visualization range
-				DrawDebugLine(GetWorld(), LidarLocation, HitLocation, FColor(255, 0, 0), false, 0.f, 0.f, 0.f);
-			}
-			Distances[i] = (HitLocation - LidarLocation).Size() / 100; //divide by 100 to convert cm to meters
-		}
-		else
-		{
-			Distances[i] = OutOfRange;
-		}
-	}
-
-}
-
-
-void AVoronoiAIController::Polylinize()
-{
-	segment_data_.clear();
-	segment_vertices.clear();
-
-	SegmentFloat NewSegment(0, 0, 10, 10);
-	float NewStartAngle = -135;
-	float StepAngle = 2; // Unit is degrees.
-	while (NewStartAngle < 135)
-	{
-		// Search for segments counterclockwise starting from NewStartAngle.
-		// GetSegment() updates NewStartAngle for the next search.
-		bool FoundNewSegment = GetSegment(NewSegment, NewStartAngle, StepAngle, DiscontinuityThreshold);
-		if (FoundNewSegment)
-		{
-			// Convert SegmentFloat to segment_type, and meters to millimeters
-			double x1, y1, x2, y2;
-			x1 = NewSegment.p0.x;
-			y1 = NewSegment.p0.y;
-			x2 = NewSegment.p1.x;
-			y2 = NewSegment.p1.y;
-			DrawDebugLine(
-				GetWorld(),
-				LidarToWorldLocation(point_type(x1, y1)),
-				LidarToWorldLocation(point_type(x2, y2)), FColor(0, 255, 0), false, 0.f, 1.f, 10.f);
-			x1 *= 1000.f;
-			y1 *= 1000.f;
-			x2 *= 1000.f;
-			y2 *= 1000.f;
-			segment_data_.push_back(segment_type(point_type(x1, y1), point_type(x2, y2))); // TODO what lp and hp? Any requiremtns on the order of points?
-			segment_vertices.push_back(point_type(x1, y1));
-			segment_vertices.push_back(point_type(x2, y2));
-		}
-	}
-}
-
-
-bool AVoronoiAIController::GetDistanceAtAngle(float& OutDistance, float angle_deg)
-{
-	// Linearly interpolate between (-135, 0) and (135, 1080) on the angle-index coordinates
-	// Slope is (1080-0)/(135-(-135)) = 1080/270
-	// Index-intercept is 1080/2 = 540
-	// Interpolation function is slope*angle_deg + intercept
-	if (angle_deg < LidarMinDegree || angle_deg > LidarMaxDegree)
-	{
-		return false;
-	}
-	int index = static_cast<int>(1080 * angle_deg / 270 + 540);
-	float Distance = Distances[index];
-	if (Distance < OutOfRange)
-	{
-		OutDistance = Distance;
-		return true;
-	}
-	else { return false; }
-}
-
-
-bool AVoronoiAIController::GetPointAtAngle(PointFloat& OutPoint, float angle_deg)
-{
-	float angle_rad = angle_deg * PI / 180.0;
-	float Distance;
-	if (GetDistanceAtAngle(Distance, angle_deg))
-	{
-		OutPoint.x = Distance * cos(angle_rad);
-		OutPoint.y = Distance * sin(angle_rad);
-		return true;
-	}
-	else { return false; } // Out of range distance
-}
-
-
-bool AVoronoiAIController::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float StepAngle, float DiscontinuityThreshold)
-{
-	PointFloat StartPoint(0, 0);
-	float StartAngle = OutStartAngle;
-	//UE_LOG(LogTemp, Warning, TEXT("Starting at angle: %f"), StartAngle);
-	while (!GetPointAtAngle(StartPoint, StartAngle))
-	{
-		StartAngle += StepAngle;
-		if (StartAngle > 135)
-		{
-			// OutStartAngle can be used for the next call to GetSegment. Here it is already out of bounds.
-			OutStartAngle = StartAngle;
-			return false; // No segment found
-		}
-	}
-	PointFloat InterPoint(0, 0);
-	float InterAngle = StartAngle + StepAngle; // Angle of the intermediate point of the segment (if any).
-	if (!GetPointAtAngle(InterPoint, InterAngle)) // TODO: Report discontinuity
-	{
-		// No point at InterAngle, so skip it for the next call to GetSegment().
-		OutStartAngle = InterAngle + StepAngle;
-		//UE_LOG(LogTemp, Warning, TEXT("!GetPointAtAngle(InterPoint, InterAngle)"));
-		return false; // No segment found
-	}
-	if (Distance(StartPoint, InterPoint) > DiscontinuityThreshold) // TODO Report discontinuity
-	{
-		// Setup the next search from the beginning of the discontinuity.
-		OutStartAngle = InterAngle;
-		//UE_LOG(LogTemp, Warning, TEXT("Distance(StartPoint, InterPoint) > DiscontinuityThreshold"));
-		return false; // No segment found
-	}
-
-	// If reached here, a segment exists starting at StartPoint and passing through SegmentInterPoint.
-	// Now search how much the track extends along this segment.
-	float EndAngle = InterAngle;
-	PointFloat EndPoint = InterPoint;
-	float CandidEndAngle = EndAngle;
-	PointFloat CandidEndPoint = EndPoint;
-	// While-loop invariant:
-	//  If EndAngle and EndPoint are valid before the loop,
-	//  then they are valid after the loop.
-	while (CandidEndAngle + StepAngle <= 135)
-	{
-		CandidEndAngle += StepAngle;
-		bool FoundNewPoint = GetPointAtAngle(CandidEndPoint, CandidEndAngle);
-		if (!FoundNewPoint) // Point at CandidEndAngle is OutOfRange TODO: Report discontinuity.
-		{
-			// Return with the current EndPoint and EndAngle
-			OutSegment.p0 = StartPoint;
-			OutSegment.p1 = EndPoint;
-			OutStartAngle = CandidEndAngle + StepAngle; // Skip the OutOfRange angle for next call to GetSegment()
-			//UE_LOG(LogTemp, Warning, TEXT("!FoundNewPoint"));
-			return true; // Found a segment
-		}
-		else if (Distance(EndPoint, CandidEndPoint) > DiscontinuityThreshold) // TODO Report discontinuity
-		{
-			// Finalize the segment with the current EndAngle and EndPoint
-			OutSegment.p0 = StartPoint;
-			OutSegment.p1 = EndPoint;
-			OutStartAngle = CandidEndAngle; // Skip the discontinuity
-			//UE_LOG(LogTemp, Warning, TEXT("Distance(EndPoint, CandidEndPoint) > DiscontinuityThreshold"));
-			return true; // Found a segment
-		}
-		else if (DistanceToLine(CandidEndPoint, StartPoint, InterPoint) > 0.1) // TODO: Expose 0.4 as a class property
-		{
-			// Finalize the segment with the current EndAngle and EndPoint
-			OutSegment.p0 = StartPoint;
-			OutSegment.p1 = EndPoint;
-			OutStartAngle = EndAngle;
-			//UE_LOG(LogTemp, Warning, TEXT("DistanceToLine(CandidEndPoint, StartPoint, InterPoint) > 0.4"));
-			return true; // Found a segment
-		}
-		else // CandidEndPoint is close enough to the interpolated line (imposing curvature threshold)
-		{
-			// Extend the segment to CandidEndPoint
-			EndAngle = CandidEndAngle;
-			EndPoint = CandidEndPoint;
-		}
-	}
-	OutSegment.p0 = StartPoint;
-	OutSegment.p1 = EndPoint;
-	OutStartAngle = CandidEndAngle + StepAngle;
-	return true;
-}
-
 
 FVector AVoronoiAIController::LidarToWorldLocation(point_type point)
 {
@@ -282,28 +96,10 @@ FVector AVoronoiAIController::LidarToWorldLocation(point_type point)
 	return LidarLocation + LidarXAxis * point.x() * 100 + LidarYAxis * point.y() * 100;
 }
 
-float AVoronoiAIController::Distance(PointFloat p0, PointFloat p1)
-{
-	float DeltaX = p1.x - p0.x;
-	float DeltaY = p1.y - p0.y;
-	return sqrt(DeltaX * DeltaX + DeltaY * DeltaY);
-}
-
-// https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line#Line_defined_by_two_points
-// Calculate distance of p0 to the line passing through p0 and p1
-float AVoronoiAIController::DistanceToLine(PointFloat point, PointFloat p0, PointFloat p1)
-{
-	float delta_y = p1.y - p0.y;
-	float delta_x = p1.x - p0.x;
-	float denominator = Distance(p0, p1);
-	float numerator_const_term = p1.x * p0.y - p1.y * p0.x;
-	float numerator = abs(delta_y * point.x - delta_x * point.y + numerator_const_term);
-	return (numerator / denominator);
-}
 
 void AVoronoiAIController::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge)
 {
-	coordinate_type max_dist = 10;
+	coordinate_type max_dist = 300; // in milimeters
 	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
 	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
 	voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
@@ -314,25 +110,25 @@ point_type AVoronoiAIController::retrieve_point(const cell_type& cell)
 	source_index_type index = cell.source_index();
 	source_category_type category = cell.source_category();
 	if (category == SOURCE_CATEGORY_SINGLE_POINT) {
-		return point_data_[index];
+		return VDPoints[index];
 	}
-	index -= point_data_.size();
+	index -= VDPoints.size();
 	if (category == SOURCE_CATEGORY_SEGMENT_START_POINT) {
-		return low(segment_data_[index]);
+		return low(VDInputLineSegments[index]);
 	}
 	else {
-		return high(segment_data_[index]);
+		return high(VDInputLineSegments[index]);
 	}
 }
 
 segment_type AVoronoiAIController::retrieve_segment(const cell_type& cell) {
-	source_index_type index = cell.source_index() - point_data_.size();
-	return segment_data_[index];
+	source_index_type index = cell.source_index() - VDPoints.size();
+	return VDInputLineSegments[index];
 }
 
 void AVoronoiAIController::DrawVD()
 {
-	for (const_edge_iterator it = vd_.edges().begin(); it != vd_.edges().end(); ++it)
+	for (const_edge_iterator it = VDiagram.edges().begin(); it != VDiagram.edges().end(); ++it)
 	{
 		if (it->is_finite() && it->is_primary())
 		{
@@ -363,7 +159,7 @@ void AVoronoiAIController::DrawVD()
 			}
 		}
 	}
-	for (const_vertex_iterator it = vd_.vertices().begin(); it != vd_.vertices().end(); ++it)
+	for (const_vertex_iterator it = VDiagram.vertices().begin(); it != VDiagram.vertices().end(); ++it)
 	{
 		if (true/*!it->is_degenerate()*/)
 		{
@@ -381,12 +177,12 @@ bool AVoronoiAIController::get_trackopening(point_type& OutTrackOpening, double 
 	std::vector<point_type> discontinuities;
 	double max_cos = -1; // The angle behind the car has cos=-1
 	int max_cos_index;
-	for (std::size_t i = 0; i + 1 < segment_data_.size(); ++i)
+	for (std::size_t i = 0; i + 1 < VDInputLineSegments.size(); ++i)
 	{
-		if (euclidean_distance(segment_data_[i].high(), segment_data_[i + 1].low()) > min_gap)
+		if (euclidean_distance(VDInputLineSegments[i].high(), VDInputLineSegments[i + 1].low()) > min_gap)
 		{
-			point_type endpoint = segment_data_[i].high();
-			convolve(endpoint, segment_data_[i + 1].low()); // add the seond point to the first
+			point_type endpoint = VDInputLineSegments[i].high();
+			convolve(endpoint, VDInputLineSegments[i + 1].low()); // add the seond point to the first
 			point_type midpoint = scale_down(endpoint, 2);
 			discontinuities.push_back(midpoint);
 			DrawDebugSphere(GetWorld(),
@@ -414,14 +210,14 @@ bool AVoronoiAIController::get_trackopening(point_type& OutTrackOpening, double 
 
 bool AVoronoiAIController::get_closest_vertex(std::size_t& OutIndex, point_type point)
 {
-	if (vd_.vertices().size() == 0)
+	if (VDiagram.vertices().size() == 0)
 	{
 		return false;
 	}
 	// If vd_vertics() is nonempty, then there must be a closest nonobstacle vertex
 	double closest_distance = 1e10; // infinity
 	std::size_t current_index = 0;
-	for (const_vertex_iterator it = vd_.vertices().begin(); it != vd_.vertices().end(); ++it)
+	for (const_vertex_iterator it = VDiagram.vertices().begin(); it != VDiagram.vertices().end(); ++it)
 	{
 		if (isObstacle(point_type(it->x(), it->y()))) // candid_point is an endpoint of an input segment
 		{
@@ -443,14 +239,14 @@ bool AVoronoiAIController::get_closest_vertex(std::size_t& OutIndex, point_type 
 
 bool AVoronoiAIController::get_closest_front_vertex(std::size_t& OutIndex, point_type point)
 {
-	if (vd_.vertices().size() == 0)
+	if (VDiagram.vertices().size() == 0)
 	{
 		return false;
 	}
 	// If vd_vertics() is nonempty, then there must be a closest nonobstacle vertex
 	double closest_distance = 1e10; // infinity
 	std::size_t current_index = 0;
-	for (const_vertex_iterator it = vd_.vertices().begin(); it != vd_.vertices().end(); ++it)
+	for (const_vertex_iterator it = VDiagram.vertices().begin(); it != VDiagram.vertices().end(); ++it)
 	{
 		if (it->x() + wheelbase <= 0) // Ignore points that are behind the rear axle
 		{
@@ -483,8 +279,8 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 	std::size_t source_index;
 	if (get_closest_vertex(goal_index, track_opening) && get_closest_front_vertex(source_index, point_type(0, 0)))
 	{
-		point_type source_point = point_type(vd_.vertices()[source_index].x() / 1000.f, vd_.vertices()[source_index].y() / 1000.f);
-		point_type goal_point = point_type(vd_.vertices()[goal_index].x() / 1000.f, vd_.vertices()[goal_index].y() / 1000.f);
+		point_type source_point = point_type(VDiagram.vertices()[source_index].x() / 1000.f, VDiagram.vertices()[source_index].y() / 1000.f);
+		point_type goal_point = point_type(VDiagram.vertices()[goal_index].x() / 1000.f, VDiagram.vertices()[goal_index].y() / 1000.f);
 		point_type rear_axle(-wheelbase, 0);
 		if (euclidean_distance(goal_point, rear_axle) < distance_to_purepursuit_goal)
 		{
@@ -500,10 +296,10 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 
 		// If reached here, goalpoint from real axel is further than distance_to_purepursuit_goal meters
 		PathMaker pmaker(DiscontinuityThreshold);
-		pmaker.set_segments(segment_data_);
-		pmaker.set_points(point_data_);
+		pmaker.set_segments(VDInputLineSegments);
+		pmaker.set_points(VDPoints);
 		std::vector<point_type> path;
-		bool found_path = pmaker.get_path(path, vd_, source_point, goal_point);
+		bool found_path = pmaker.get_path(path, VDiagram, source_point, goal_point);
 		if (found_path)
 		{
 			for (std::vector<point_type>::iterator it = path.end() - 1; it != path.begin(); --it)
@@ -551,13 +347,14 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 
 bool AVoronoiAIController::isObstacle(point_type point) // input point in millimeters
 {
-	for (auto itr = segment_vertices.begin(); itr != segment_vertices.end(); ++itr)
+	for (auto itr = VDInputLineSegments.begin(); itr != VDInputLineSegments.end(); ++itr)
 	{
-		if (euclidean_distance(point, point_type(itr->x(), itr->y())) <= 5)
+		if (euclidean_distance(point, itr->high()) <= 5 || euclidean_distance(point, itr->low()) <= 5) // 5mm 
 		{
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -587,35 +384,4 @@ float AVoronoiAIController::pure_pursuit(point_type goal_point)
 	}
 	// The steering command is in percentages
 	return steering_angle_deg/max_turn_degrees;
-}
-
-
-float AVoronoiAIController::duty_cycle_from_distance(float distance)
-{
-	/* Takes a forward distance and returns a duty cycle value to set the
-		car's velocity. Fairly unprincipled, basically just scales the speed
-		directly based on distance, and stops if the car is blocked. */
-	if (distance <= min_distance)
-	{
-		return 0.0;
-	}
-	if (distance >= no_obstacles_distance)
-	{
-		return absolute_max_speed;
-	}
-	if (distance >= max_distance)
-	{
-		return scale_speed_linearly(max_speed, absolute_max_speed, distance, max_distance, no_obstacles_distance);
-	}
-	return scale_speed_linearly(min_speed, max_speed, distance, min_distance, max_distance);
-}
-
-float AVoronoiAIController::scale_speed_linearly(float speed_low, float speed_high, float distance, float distance_low, float distance_high)
-{
-	/* Scales the speed linearly in [speed_low, speed_high] based on the
-		distance value, relative to the range[distance_low, distance_high]. */
-	float distance_range = distance_high - distance_low;
-	float ratio = (distance - distance_low) / distance_range;
-	float speed_range = speed_high - speed_low;
-	return speed_low + (speed_range * ratio);
 }
