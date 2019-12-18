@@ -63,7 +63,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	point_type track_opening;
 	point_type PurePursuitGoal;
 	float steering_ratio = 0.f;
-	if (!get_trackopening(track_opening, DiscontinuityThreshold*1000)) // convert to mm
+	if (!get_trackopening(track_opening, MinTrackWidth*1000)) // convert to mm
 	{
 		UE_LOG(LogTemp, Warning, TEXT("No discontinuity found!"));
 	}
@@ -83,7 +83,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	// Draw circle corresponding to pure_pursuit lookahead distance (to rear axle)
 	DrawDebugCircle(GetWorld(),
 		ControlledVehicle->GetActorLocation() - 0.5f*wheelbase*100.f*ControlledVehicle->GetActorForwardVector(),
-		distance_to_purepursuit_goal*100.f, 36, FColor(0, 0, 0), false, 0.f, 30, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
+		PurepursuitLookahead*100.f, 36, FColor(0, 0, 0), false, 0.f, 30, 2.f, FVector(0, 1, 0), FVector(1, 0, 0));
 
 	//UE_LOG(LogTemp, Warning, TEXT("Steering ratio: %f"), steering_ratio);
 	ControlledVehicle->MoveForward(0.45);
@@ -282,7 +282,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 		point_type source_point = point_type(VDiagram.vertices()[source_index].x() / 1000.f, VDiagram.vertices()[source_index].y() / 1000.f);
 		point_type goal_point = point_type(VDiagram.vertices()[goal_index].x() / 1000.f, VDiagram.vertices()[goal_index].y() / 1000.f);
 		point_type rear_axle(-wheelbase, 0);
-		if (euclidean_distance(goal_point, rear_axle) < distance_to_purepursuit_goal)
+		if (euclidean_distance(goal_point, rear_axle) < PurepursuitLookahead)
 		{
 			OutGoalPoint = goal_point;
 			return true;
@@ -295,7 +295,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 			8.f, 5.f, FColor(0, 255, 0), false, 0.f, 15.f, 2.1f);
 
 		// If reached here, goalpoint from real axel is further than distance_to_purepursuit_goal meters
-		PathMaker pmaker(DiscontinuityThreshold);
+		PathMaker pmaker(MinTrackWidth);
 		pmaker.set_segments(VDInputLineSegments);
 		pmaker.set_points(VDPoints);
 		std::vector<point_type> path;
@@ -308,7 +308,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 				// UE_LOG(LogTemp, Warning, TEXT("*it: x: %f, y: %f"), (*it).x(), (*it).y());
 				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 20.f, 3.f);
 				if ((*it).x() > 0 // point in front of the car
-					&& euclidean_distance(*(it - 1), rear_axle) < distance_to_purepursuit_goal) // next point too close.
+					&& euclidean_distance(*(it - 1), rear_axle) < PurepursuitLookahead) // next point too close.
 					// TODO interpolate based on distance instead of giving an endpoint.
 				{
 					double x1 = (it - 1)->x() + wheelbase; // Convert lidar coordinates to rear axle coordinates (assuming lidar at front axle)
@@ -319,7 +319,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 					double dy = y2 - y1;
 					double A = dx * dx + dy * dy;
 					double B = x1 * dx + y1 * dy;
-					double C = x1 * x1 + y1 * y1 - distance_to_purepursuit_goal * distance_to_purepursuit_goal;
+					double C = x1 * x1 + y1 * y1 - PurepursuitLookahead * PurepursuitLookahead;
 					double t = (-B + sqrt(B*B - A * C)) / A;
 					OutGoalPoint = point_type(x1 + t * dx - wheelbase, y1 + t * dy); // Convert back to lidar coordinates
 					return true;
@@ -329,7 +329,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 			double x1 = source_point.x() + wheelbase;
 			double y1 = source_point.y();
 			double d = sqrt(x1*x1 + y1 * y1);
-			OutGoalPoint = point_type(x1 / d * distance_to_purepursuit_goal - wheelbase, y1 / d * distance_to_purepursuit_goal);
+			OutGoalPoint = point_type(x1 / d * PurepursuitLookahead - wheelbase, y1 / d * PurepursuitLookahead);
 			return true; // TODO pushback rear axel to path to avoid this extra case
 		}
 		else
@@ -369,7 +369,7 @@ float AVoronoiAIController::pure_pursuit(point_type goal_point)
 	// distance_to_goalpoint must be positive
 
 	//double goalpoint_angle_rad = atan(goal_point.y() / (goal_point.x()+wheelbase));
-	double d2 = distance_to_purepursuit_goal * distance_to_purepursuit_goal;
+	double d2 = PurepursuitLookahead * PurepursuitLookahead;
 	double steering_angle_rad = atan(2 * wheelbase * goal_point.y() / d2);
 	double steering_angle_deg = steering_angle_rad * 180.f / PI;
 

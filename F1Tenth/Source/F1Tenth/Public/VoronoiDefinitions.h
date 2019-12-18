@@ -4,17 +4,6 @@
 #include <boost/polygon/voronoi.hpp>
 #include "voronoi_visual_utils.hpp"
 
-struct PointFloat {
-	float x;
-	float y;
-	PointFloat(float x0, float y0) : x(x0), y(y0) {}
-};
-
-struct SegmentFloat {
-	PointFloat p0;
-	PointFloat p1;
-	SegmentFloat(float x1, float y1, float x2, float y2) : p0(x1, y1), p1(x2, y2) {}
-};
 
 using namespace boost::polygon;
 typedef double coordinate_type;

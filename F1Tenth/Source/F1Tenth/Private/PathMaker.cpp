@@ -51,47 +51,6 @@ float PathMaker::distance_to_line(const point_type& point, const point_type& p0,
 	return (numerator / denominator);
 }
 
-void PathMaker::construct_vd(const std::vector<SegmentFloat>& floatsegments, const std::vector<PointFloat>& floatpoints) {
-	std::vector<PointFloat>::const_iterator pf_it = floatpoints.begin();
-	for(; pf_it != floatpoints.end(); ++pf_it)
-		_points.push_back(cast_to_point_type(*pf_it));
-
-	std::vector<SegmentFloat>::const_iterator sf_it = floatsegments.begin();
-	for( ; sf_it != floatsegments.end(); ++sf_it)
-		_segments.push_back(cast_to_segment_type(*sf_it));
-	
-	construct_voronoi(_points.begin(), _points.end(), _segments.begin(), _segments.end(), &_vd);
-}
-
-void PathMaker::construct_vd(const std::vector<SegmentFloat>& floatsegments) {
-	std::vector<SegmentFloat>::const_iterator sf_it = floatsegments.begin();
-	for( ; sf_it != floatsegments.end(); ++sf_it)
-		_segments.push_back(cast_to_segment_type(*sf_it));
-	
-	construct_voronoi(_segments.begin(), _segments.end(), &_vd);
-}
-
-void PathMaker::construct_vd(const std::vector<PointFloat>& floatpoints) {
-	std::vector<PointFloat>::const_iterator pf_it = floatpoints.begin();
-	for(; pf_it != floatpoints.end(); ++pf_it)
-		_points.push_back(cast_to_point_type(*pf_it));
-
-	construct_voronoi(_points.begin(), _points.end(), &_vd);
-}
-
-int PathMaker::print_primary_edges() {
-  int result = 0;
-  for (const_edge_iterator it = _vd.edges().begin(); it != _vd.edges().end(); ++it) {
-	  if (it->is_finite() && it->is_primary()) {
-		  point_type v0(it->vertex0()->x()/1000.f, it->vertex0()->y()/1000.f);
-		  point_type v1(it->vertex1()->x()/1000.f, it->vertex1()->y()/1000.f);
-		  printf("\nedge: vertex0=(%f, %f), vertex1=(%f, %f)", v0.x(), v0.y(), v1.x(), v1.y());
-		  ++result;
-    }
-  }
-  return result;
-};
-
 void PathMaker::count_and_color_cells() {
   for(const_cell_iterator it = _vd.cells().begin(); it != _vd.cells().end(); ++it) {
 	  std::size_t cnt = 0;
@@ -109,55 +68,6 @@ void PathMaker::count_and_color_cells() {
   std::cout << "Number of closed cells " << _vd.cells().size() - open_cells << std::endl;
 };
 
-void PathMaker::print_point_type(const point_type& point) {
-	std::cout << "Point: (" << point.x() << ", " << point.y() << ")" << std::endl;
-}
-
-void PathMaker::print_vertex_type(const vertex_type& vertex) {
-	point_type v_point(vertex.x()/1000.f, vertex.y()/1000.f);
-	std::cout << "Vertex: (" << v_point.x() << ", " << v_point.y() << ")" << std::endl;
-}
-
-#if 0
-void PathMaker::color_close_vertices_1(const VD& vd, const float& allowed_obs_dist) {
-
-	//double allowed_obs_dist = 0.3;
-	for (const_vertex_iterator it = vd.vertices().begin(); it != vd.vertices().end(); ++it)
-		it->color(0);
-
-	for (const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it) {
-
-		if (it->is_finite() && it->is_primary()) {
-			const vertex_type* e_vertex0 = it->vertex0();
-			const vertex_type* e_vertex1 = it->vertex1();
-			if ((e_vertex0->color() == 1) || (e_vertex1->color() == 1))
-				continue;
-			point_type v0(e_vertex0->x() / 1000.f, e_vertex0->y() / 1000.f);
-			point_type v1(e_vertex1->x() / 1000.f, e_vertex1->y() / 1000.f);
-			const cell_type* edge_cell = it->cell();
-			std::size_t index = edge_cell->source_index();
-
-			if (edge_cell->contains_segment()) {
-				if (edge_cell->source_category() !=
-					boost::polygon::SOURCE_CATEGORY_SEGMENT_START_POINT &&
-					edge_cell->source_category() !=
-					boost::polygon::SOURCE_CATEGORY_SEGMENT_END_POINT) {
-					point_type p0 = low(_segments[index]);
-					p0 = point_type(p0.x() / 1000.f, p0.y() / 1000.f);
-					point_type p1 = high(_segments[index]);
-					p1 = point_type(p1.x() / 1000.f, p1.y() / 1000.f);
-
-					//std::cout << "Distances: " << d1 << ", " << d2 << ", " << d3 << ", " << d4 << std::endl;
-					if (distance_between_points(v0, p0) < allowed_obs_dist || distance_between_points(v0, p1) < allowed_obs_dist)
-						e_vertex0->color(1);
-					if (distance_between_points(v1, p0) < allowed_obs_dist || distance_between_points(v1, p1) < allowed_obs_dist)
-						e_vertex1->color(1);
-				}
-			}
-		}
-	}
-}
-#endif
 
 void PathMaker::color_close_vertices(const VD& vd, const double allowed_obs_dist) {
 
@@ -329,12 +239,6 @@ GNode* minDistance(std::list<GNode*>& temp_nodes) {
 	return min_node;
 }
 
-void Graph::print() {
-
-	for(std::vector<GNode*>::iterator node_it = _nodes.begin();
-			node_it != _nodes.end(); ++node_it)
-		cout << (*node_it)->_dist << std::endl;
-}
 
 bool Graph::compute_shortest_path(std::vector<point_type>& out_path, GNode* start_node, GNode* end_node) {
 
@@ -399,18 +303,6 @@ bool Graph::compute_shortest_path(std::vector<point_type>& out_path, GNode* star
 	return flag;
 }
 
-bool PathMaker::get_path(std::vector<point_type>& out_path, const point_type& sVertex, const point_type& gVertex) {
-
-	Graph graph;	
-	construct_graph_from_vd(_vd, graph);
-	//point_type sVertex(0/1000.f, 0/1000.f);
-	GNode* start_node = graph.get_node(sVertex);
-	//point_type eVertex(1500/1000.f, 2500/1000.f);
-	GNode* goal_node = graph.get_node(gVertex);
-	bool result = graph.compute_shortest_path(out_path, start_node, goal_node);
-	return result;
-};
-
 bool PathMaker::get_path(std::vector<point_type>& out_path, const VD& vd, const point_type& sVertex, const point_type& gVertex) {
 
 	Graph graph;
@@ -420,26 +312,3 @@ bool PathMaker::get_path(std::vector<point_type>& out_path, const VD& vd, const 
 	bool result = graph.compute_shortest_path(out_path, start_node, goal_node);
 	return result;
 }
-
-//int main() {
-//
-//	std::vector<SegmentFloat> sf;
-//	sf.push_back(SegmentFloat(1, 0, 1, 1));
-//	sf.push_back(SegmentFloat(1, 1, 2, 2));
-//	sf.push_back(SegmentFloat(-1, 0, -1, 1));
-//	sf.push_back(SegmentFloat(-1, 1, -2, 2));
-//	sf.push_back(SegmentFloat(0, 2, 1, 3));
-//	sf.push_back(SegmentFloat(0, 2, -1, 3));
-//	PathMaker vs;
-//	vs.construct_vd(sf);
-//	std::vector<point_type> path;
-//	point_type sVertex(0/1000.f, 0/1000.f);
-//	point_type eVertex(1500/1000.f, 2500/1000.f);
-//	bool result = vs.get_path(path, sVertex, eVertex); 
-//	if (result) {
-//		for (std::vector<point_type>::iterator it = path.begin(); it != path.end(); ++it) {
-//			printf("\nvertex=(%f, %f)", (*it).x(), (*it).y());
-//		}
-//	}
-//	return 0;
-//}

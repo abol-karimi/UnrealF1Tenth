@@ -26,16 +26,6 @@ private:
 	FVector LidarToWorldLocation(point_type point); // Convert a point in Lidar's xy-coordinates to world's coordinate (for visualization)
 	float pure_pursuit(point_type goal_point);
 
-	// Lidar Methods
-	//void Scan(); // Linetrace to sense distances
-	//void Polylinize(); // Converty raw distances to line segments
-	//bool GetDistanceAtAngle(float& OutDistance, float angle_deg); // Returns the corresponding distance in Distances[1081] 
-	//bool GetPointAtAngle(PointFloat& OutPoint, float angle_deg); // Calculates the lidar point at angle_deg in Distances[1081] 
-	//bool GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float StepAngle, float DiscontinuityThreshold);
-	//float Distance(PointFloat p0, PointFloat p1);
-	//float DistanceToLine(PointFloat point, PointFloat p0, PointFloat p1);
-
-
 	// VoronoiGraph Methods
 	void sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge);
 	point_type retrieve_point(const cell_type& cell);
@@ -52,22 +42,16 @@ private:
 	// Controller properties
 	AF1TenthPawn* ControlledVehicle = nullptr;
 	ULidarComponent* Lidar = nullptr;
-	float distance_to_purepursuit_goal = 2.0; // Distance (in meters) between the rear axel and the goal point
+	float MinTrackWidth = 0.7; // cm
+	float PurepursuitLookahead = 2.0; // Distance (in meters) between the rear axel and the goal point
 
 	// Vehicle properties
 	float wheelbase = 0.3; // Distance (in meters) of rear axle to front axel
 	float max_turn_degrees = 34;
 
 	// Lidar properties
-	float DiscontinuityThreshold = 0.7; // cm
 	FVector LidarLocation;
 	FVector LidarXAxis, LidarYAxis, LidarZAxis;
-	float AngularResolution = 0.25; // 4 measurements per angle
-	float Range = 17; // Maximum detectable distance in meters
-	float OutOfRange = 65.533; // Value to return if distance > LidarRange
-	float LidarMinDegree = -135;
-	float LidarMaxDegree = 135; // (LidarMaxDegree - LidarMinDegree)*AngularResolution + 1 = 1081
-	float Distances[1081]; // Array of distances
 
 	// VoronoiGraph properties
 	VD VDiagram;
