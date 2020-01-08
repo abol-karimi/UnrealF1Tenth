@@ -95,3 +95,4 @@ public:
 	point_type retrieve_point(const cell_type& cell);
 	segment_type retrieve_segment(const cell_type& cell);
 };
+

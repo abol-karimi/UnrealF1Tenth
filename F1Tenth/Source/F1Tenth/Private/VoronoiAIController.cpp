@@ -3,6 +3,7 @@
 #include "../Public/VoronoiAIController.h"
 #include "PathMaker.h"
 #include "LidarComponent.h"
+#include "voronoi_visual_utils.hpp"
 
 #include "Runtime/Engine/Public/DrawDebugHelpers.h"
 #include "Runtime/Engine/Classes/Engine/World.h"
@@ -50,13 +51,25 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	Lidar->Scan();
 
 	// Make a set of polylines out of lidar 2D point cloud
-	Lidar->Polylinize(VDInputLineSegments);
+	Lidar->Polylinize(Walls);
+
+	// Get the plan as list of line segments and draw it
+	// Planner.MakeRoadmap(Walls);
+	// std::vector<segment_type> Plan;
+	// Planner.GetPlan(Plan);
+	// DrawRoadmap(Roadmap);
+
+	// if (Plan is empty)
+		// error: no plan found!
+	// else
+		// find purepursuit goal
+		// command steering and velocity
 
 	// Make a voronoi diagram
 	VDiagram.clear();
-	construct_voronoi(VDInputLineSegments.begin(), VDInputLineSegments.end(), &VDiagram);
+	construct_voronoi(Walls.begin(), Walls.end(), &VDiagram);
 
-	// Visualize the voronoi diagram (stored in vd_)
+	// Visualize the voronoi diagram
 	DrawVD();
 
 	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
@@ -102,28 +115,28 @@ void AVoronoiAIController::sample_curved_edge(const edge_type& edge, std::vector
 	coordinate_type max_dist = 300; // in milimeters
 	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
 	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
-	voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+	boost::polygon::voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
 }
 
 point_type AVoronoiAIController::retrieve_point(const cell_type& cell)
 {
 	source_index_type index = cell.source_index();
 	source_category_type category = cell.source_category();
-	if (category == SOURCE_CATEGORY_SINGLE_POINT) {
+	if (category == boost::polygon::SOURCE_CATEGORY_SINGLE_POINT) {
 		return VDPoints[index];
 	}
 	index -= VDPoints.size();
-	if (category == SOURCE_CATEGORY_SEGMENT_START_POINT) {
-		return low(VDInputLineSegments[index]);
+	if (category == boost::polygon::SOURCE_CATEGORY_SEGMENT_START_POINT) {
+		return low(Walls[index]);
 	}
 	else {
-		return high(VDInputLineSegments[index]);
+		return high(Walls[index]);
 	}
 }
 
 segment_type AVoronoiAIController::retrieve_segment(const cell_type& cell) {
 	source_index_type index = cell.source_index() - VDPoints.size();
-	return VDInputLineSegments[index];
+	return Walls[index];
 }
 
 void AVoronoiAIController::DrawVD()
@@ -177,12 +190,12 @@ bool AVoronoiAIController::get_trackopening(point_type& OutTrackOpening, double 
 	std::vector<point_type> discontinuities;
 	double max_cos = -1; // The angle behind the car has cos=-1
 	int max_cos_index;
-	for (std::size_t i = 0; i + 1 < VDInputLineSegments.size(); ++i)
+	for (std::size_t i = 0; i + 1 < Walls.size(); ++i)
 	{
-		if (euclidean_distance(VDInputLineSegments[i].high(), VDInputLineSegments[i + 1].low()) > min_gap)
+		if (euclidean_distance(Walls[i].high(), Walls[i + 1].low()) > min_gap)
 		{
-			point_type endpoint = VDInputLineSegments[i].high();
-			convolve(endpoint, VDInputLineSegments[i + 1].low()); // add the seond point to the first
+			point_type endpoint = Walls[i].high();
+			convolve(endpoint, Walls[i + 1].low()); // add the seond point to the first
 			point_type midpoint = scale_down(endpoint, 2);
 			discontinuities.push_back(midpoint);
 			DrawDebugSphere(GetWorld(),
@@ -296,7 +309,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 
 		// If reached here, goalpoint from real axel is further than distance_to_purepursuit_goal meters
 		PathMaker pmaker(MinTrackWidth);
-		pmaker.set_segments(VDInputLineSegments);
+		pmaker.set_segments(Walls);
 		pmaker.set_points(VDPoints);
 		std::vector<point_type> path;
 		bool found_path = pmaker.get_path(path, VDiagram, source_point, goal_point);
@@ -347,7 +360,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 
 bool AVoronoiAIController::isObstacle(point_type point) // input point in millimeters
 {
-	for (auto itr = VDInputLineSegments.begin(); itr != VDInputLineSegments.end(); ++itr)
+	for (auto itr = Walls.begin(); itr != Walls.end(); ++itr)
 	{
 		if (euclidean_distance(point, itr->high()) <= 5 || euclidean_distance(point, itr->low()) <= 5) // 5mm 
 		{

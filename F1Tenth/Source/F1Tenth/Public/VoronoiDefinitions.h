@@ -2,16 +2,11 @@
 
 #include <boost/polygon/polygon.hpp>
 #include <boost/polygon/voronoi.hpp>
-#include "voronoi_visual_utils.hpp"
 
-
-using namespace boost::polygon;
 typedef double coordinate_type;
 typedef boost::polygon::point_data<coordinate_type> point_type;
-typedef segment_data<coordinate_type> segment_type;
-typedef rectangle_data<coordinate_type> rect_type;
-typedef voronoi_builder<int> VB;
-typedef voronoi_diagram<coordinate_type> VD;
+typedef boost::polygon::segment_data<coordinate_type> segment_type;
+typedef boost::polygon::voronoi_diagram<coordinate_type> VD;
 typedef VD::cell_type cell_type;
 typedef VD::cell_type::source_index_type source_index_type;
 typedef VD::cell_type::source_category_type source_category_type;

@@ -1,5 +1,6 @@
 #include "PathMaker.h"
 #include "../Public/VoronoiAIController.h"
+#include "voronoi_visual_utils.hpp"
 
 #include <cstdio>
 #include <vector>
@@ -110,18 +111,18 @@ void PathMaker::sample_curved_edge(const edge_type& edge, std::vector<point_type
 	coordinate_type max_dist = 300;
 	point_type point = edge.cell()->contains_point() ? retrieve_point(*edge.cell()) : retrieve_point(*edge.twin()->cell());
 	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell()) : retrieve_segment(*edge.cell());
-	voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+	boost::polygon::voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
 }
 
 point_type PathMaker::retrieve_point(const cell_type& cell)
 {
 	source_index_type index = cell.source_index();
 	source_category_type category = cell.source_category();
-	if (category == SOURCE_CATEGORY_SINGLE_POINT) {
+	if (category == boost::polygon::SOURCE_CATEGORY_SINGLE_POINT) {
 		return _points[index];
 	}
 	index -= _points.size();
-	if (category == SOURCE_CATEGORY_SEGMENT_START_POINT) {
+	if (category == boost::polygon::SOURCE_CATEGORY_SEGMENT_START_POINT) {
 		return low(_segments[index]);
 	}
 	else {

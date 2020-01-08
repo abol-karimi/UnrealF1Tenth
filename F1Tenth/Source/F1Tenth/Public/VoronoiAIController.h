@@ -4,6 +4,7 @@
 
 #include "VoronoiDefinitions.h"
 #include <set>
+#include "VoronoiGraph.h"
 
 #include "F1TenthPawn.h"
 #include "CoreMinimal.h"
@@ -54,7 +55,11 @@ private:
 	FVector LidarXAxis, LidarYAxis, LidarZAxis;
 
 	// VoronoiGraph properties
+	VoronoiGraph Planner;
+
 	VD VDiagram;
 	std::vector<point_type> VDPoints;
-	std::vector<segment_type> VDInputLineSegments;
+	std::vector<segment_type> Walls;
+
+	
 };
