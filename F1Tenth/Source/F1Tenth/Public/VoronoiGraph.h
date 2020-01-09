@@ -10,8 +10,6 @@ typedef double coordinate_type;
 typedef boost::polygon::point_data<coordinate_type> point_type;
 typedef boost::polygon::segment_data<coordinate_type> segment_type;
 
-
-
 /**
  * 
  */
@@ -28,8 +26,3 @@ private:
 
 };
 
-
-//typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
-//	boost::no_property,
-//	boost::property<boost::edge_weight_t, float> > Roadmap_t;
-//Roadmap_t Roadmap;

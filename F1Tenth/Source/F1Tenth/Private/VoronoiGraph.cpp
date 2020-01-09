@@ -3,8 +3,8 @@
 
 #include "VoronoiGraph.h"
 
-
 #include <boost/polygon/voronoi.hpp>
+
 typedef boost::polygon::voronoi_diagram<coordinate_type> VD;
 typedef VD::cell_type cell_type;
 typedef VD::cell_type::source_index_type source_index_type;
@@ -77,3 +77,12 @@ bool VoronoiGraph::get_trackopening(point_type& OutTrackOpening,
 	}
 	else { return false; }
 }
+
+THIRD_PARTY_INCLUDES_START
+#include <boost/graph/adjacency_list.hpp>
+THIRD_PARTY_INCLUDES_END
+
+typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
+	boost::no_property,
+	boost::property<boost::edge_weight_t, float> > Roadmap_t;
+Roadmap_t Roadmap;
