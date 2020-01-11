@@ -237,7 +237,7 @@ void ADisparityAIController::find_new_angle(float& OutDistance, float& OutAngle)
 	in a direct line without bumping into edges.Returns the distance in meters
 	and the angle in degrees. */
 	extend_disparities();
-	float max_distance = -1.0e10;
+	float current_max_distance = -1.0e10;
 	OutAngle = 0.0;
 	// Constrain the arc of possible angles we consider.
 	size_t min_sample_index = index_from_angle(min_considered_angle);
@@ -259,10 +259,10 @@ void ADisparityAIController::find_new_angle(float& OutDistance, float& OutAngle)
 	for (size_t i = 0; i < limited_values.size(); i++)
 	{
 		OutDistance = limited_values[i];
-		if (OutDistance > max_distance)
+		if (OutDistance > current_max_distance)
 		{
 			OutAngle = min_considered_angle + float(i) / samples_per_degree;
-			max_distance = OutDistance;
+			current_max_distance = OutDistance;
 		}
 	}
 }
@@ -333,7 +333,7 @@ float ADisparityAIController::adjust_angle_for_car_side(float target_angle)
 	bool turning_left = target_angle > 0.0;
 	// Get the portion of the LIDAR samples facing sideways and backwards on
 	// the side of the car in the direction of the turn.
-	float samples_per_degree = float(lidar_distances.size()) / scan_width;
+	//float samples_per_degree = float(lidar_distances.size()) / scan_width;
 	float number_of_back_degrees = (scan_width / 2.0) - 90.0;
 	size_t needed_sample_count = size_t(number_of_back_degrees * samples_per_degree);
 	std::vector<float> side_samples(needed_sample_count);

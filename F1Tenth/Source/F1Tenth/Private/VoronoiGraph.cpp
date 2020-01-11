@@ -18,6 +18,7 @@ typedef VD::const_vertex_iterator const_vertex_iterator;
 typedef VD::const_edge_iterator const_edge_iterator;
 typedef VD::vertex_type vertex_type;
 
+
 VoronoiGraph::VoronoiGraph()
 {
 }
@@ -78,11 +79,3 @@ bool VoronoiGraph::get_trackopening(point_type& OutTrackOpening,
 	else { return false; }
 }
 
-THIRD_PARTY_INCLUDES_START
-#include <boost/graph/adjacency_list.hpp>
-THIRD_PARTY_INCLUDES_END
-
-typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
-	boost::no_property,
-	boost::property<boost::edge_weight_t, float> > Roadmap_t;
-Roadmap_t Roadmap;

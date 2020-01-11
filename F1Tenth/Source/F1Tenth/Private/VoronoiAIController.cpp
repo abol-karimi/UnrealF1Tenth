@@ -189,7 +189,7 @@ bool AVoronoiAIController::get_trackopening(point_type& OutTrackOpening, double 
 {
 	std::vector<point_type> discontinuities;
 	double max_cos = -1; // The angle behind the car has cos=-1
-	int max_cos_index;
+	int max_cos_index = -1; // If there is any discontinuity, the index will be updated.
 	for (std::size_t i = 0; i + 1 < Walls.size(); ++i)
 	{
 		if (euclidean_distance(Walls[i].high(), Walls[i + 1].low()) > min_gap)

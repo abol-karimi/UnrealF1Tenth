@@ -82,7 +82,7 @@ void ULidarComponent::Polylinize(std::vector<segment_type>& OutLineSegments)
 	}
 }
 
-bool ULidarComponent::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float StepAngle, float DiscontinuityThreshold)
+bool ULidarComponent::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float StepAngle, float DiscontThreshold)
 {
 	PointFloat StartPoint(0, 0);
 	float StartAngle = OutStartAngle;
@@ -106,7 +106,7 @@ bool ULidarComponent::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle,
 		//UE_LOG(LogTemp, Warning, TEXT("!GetPointAtAngle(InterPoint, InterAngle)"));
 		return false; // No segment found
 	}
-	if (Distance(StartPoint, InterPoint) > DiscontinuityThreshold) // TODO Report discontinuity
+	if (Distance(StartPoint, InterPoint) > DiscontThreshold) // TODO Report discontinuity
 	{
 		// Setup the next search from the beginning of the discontinuity.
 		OutStartAngle = InterAngle;
@@ -136,7 +136,7 @@ bool ULidarComponent::GetSegment(SegmentFloat& OutSegment, float& OutStartAngle,
 			//UE_LOG(LogTemp, Warning, TEXT("!FoundNewPoint"));
 			return true; // Found a segment
 		}
-		else if (Distance(EndPoint, CandidEndPoint) > DiscontinuityThreshold) // TODO Report discontinuity
+		else if (Distance(EndPoint, CandidEndPoint) > DiscontThreshold) // TODO Report discontinuity
 		{
 			// Finalize the segment with the current EndAngle and EndPoint
 			OutSegment.p0 = StartPoint;

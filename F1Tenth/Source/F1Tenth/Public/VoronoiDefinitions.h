@@ -1,7 +1,10 @@
 #pragma once
 
+THIRD_PARTY_INCLUDES_START
 #include <boost/polygon/polygon.hpp>
 #include <boost/polygon/voronoi.hpp>
+THIRD_PARTY_INCLUDES_END
+
 
 typedef double coordinate_type;
 typedef boost::polygon::point_data<coordinate_type> point_type;
