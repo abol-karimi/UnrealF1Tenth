@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include <boost/polygon/polygon.hpp>
 #include <vector>
+
+THIRD_PARTY_INCLUDES_START
+#include <boost/polygon/polygon.hpp>
+THIRD_PARTY_INCLUDES_END
 
 typedef double coordinate_type;
 typedef boost::polygon::point_data<coordinate_type> point_type;
@@ -32,6 +35,8 @@ public:
 	~VoronoiGraph();
 	void MakeRoadmap(const std::vector<segment_type>& Walls);
 	void GetPlan(std::vector<segment_type>& OutPlan);
+
+	void GetRoadmapPoints(std::list<point_type>& points);
 
 private:
 	bool get_trackopening(point_type& OutTrackOpening, const std::vector<segment_type>& Walls, double min_gap);

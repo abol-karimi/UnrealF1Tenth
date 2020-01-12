@@ -1,6 +1,9 @@
 #include "PathMaker.h"
 #include "../Public/VoronoiAIController.h"
+
+THIRD_PARTY_INCLUDES_START
 #include "voronoi_visual_utils.hpp"
+THIRD_PARTY_INCLUDES_END
 
 #include <cstdio>
 #include <vector>

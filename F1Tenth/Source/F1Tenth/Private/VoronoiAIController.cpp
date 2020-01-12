@@ -54,7 +54,14 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	Lidar->Polylinize(Walls);
 
 	// Get the plan as list of line segments and draw it
-	// Planner.MakeRoadmap(Walls);
+	Planner.MakeRoadmap(Walls);
+	std::list<point_type> points;
+	Planner.GetRoadmapPoints(points);
+	for (const point_type& point : points)
+	{
+		DrawDebugSphere(GetWorld(), LidarToWorldLocation(point),
+			15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
+	}
 	// std::vector<segment_type> Plan;
 	// Planner.GetPlan(Plan);
 	// DrawRoadmap(Roadmap);
@@ -103,7 +110,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	
 }
 
-FVector AVoronoiAIController::LidarToWorldLocation(point_type point)
+FVector AVoronoiAIController::LidarToWorldLocation(const point_type& point)
 {
 	FVector LocationInLidar = FVector(point.x() * 100, point.y() * 100, 0); // *100 to convert to cm
 	return LidarLocation + LidarXAxis * point.x() * 100 + LidarYAxis * point.y() * 100;
@@ -176,9 +183,9 @@ void AVoronoiAIController::DrawVD()
 	{
 		if (true/*!it->is_degenerate()*/)
 		{
-			point_type vertex(it->x() / 1000.f, it->y() / 1000.f);
-			DrawDebugSphere(GetWorld(), LidarToWorldLocation(vertex),
-				15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
+			//point_type vertex(it->x() / 1000.f, it->y() / 1000.f);
+			//DrawDebugSphere(GetWorld(), LidarToWorldLocation(vertex),
+			//	15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
 		}
 	}
 

@@ -24,7 +24,7 @@ class F1TENTH_API AVoronoiAIController : public AAIController
 	virtual void Tick(float DeltaTime) override;
 
 private:
-	FVector LidarToWorldLocation(point_type point); // Convert a point in Lidar's xy-coordinates to world's coordinate (for visualization)
+	FVector LidarToWorldLocation(const point_type& point); // Convert a point in Lidar's xy-coordinates to world's coordinate (for visualization)
 	float pure_pursuit(point_type goal_point);
 
 	// VoronoiGraph Methods
