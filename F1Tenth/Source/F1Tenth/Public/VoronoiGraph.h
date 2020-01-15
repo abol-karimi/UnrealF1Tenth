@@ -8,7 +8,6 @@
 THIRD_PARTY_INCLUDES_START
 #include <boost/polygon/polygon.hpp>
 THIRD_PARTY_INCLUDES_END
-
 typedef double coordinate_type;
 typedef boost::polygon::point_data<coordinate_type> point_type;
 typedef boost::polygon::segment_data<coordinate_type> segment_type;
@@ -16,7 +15,6 @@ typedef boost::polygon::segment_data<coordinate_type> segment_type;
 THIRD_PARTY_INCLUDES_START
 #include <boost/graph/adjacency_list.hpp>
 THIRD_PARTY_INCLUDES_END
-
 namespace boost {
 	enum vertex_coordinates_t { vertex_coordinates = 111 }; // a unique id for the type tag
 	BOOST_INSTALL_PROPERTY(vertex, coordinates);
