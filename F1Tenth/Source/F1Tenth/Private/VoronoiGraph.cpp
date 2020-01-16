@@ -158,10 +158,10 @@ void VoronoiGraph::add_curved_edge(const edge_type& edge, std::unordered_map<con
 	vertices[samples.size()-1] = voronoi_to_roadmap.at(edge.vertex1());
 	// Add all the new points from discretization to the roadmap
 	for (std::size_t i = 1; i < samples.size() - 1; ++i)
-		vertices[i] = add_roadmap_vertex(scale_down(samples[i], 1000));
+		vertices[i] = add_roadmap_vertex(boost::polygon::scale_down(samples[i], 1000));
 	// Add all the edges of the discretization
 	for (std::size_t i = 0; i < samples.size() - 1; ++i)
-		add_roadmap_edge(vertices[i], vertices[i + 1], euclidean_distance(samples[i], samples[i + 1]));
+		add_roadmap_edge(vertices[i], vertices[i + 1], boost::polygon::euclidean_distance(samples[i], samples[i + 1]) / 1000.f);
 }
 
 void VoronoiGraph::GetRoadmapPoints(std::list<point_type>& points)
