@@ -62,6 +62,14 @@ void AVoronoiAIController::Tick(float DeltaTime)
 		DrawDebugSphere(GetWorld(), LidarToWorldLocation(point),
 			15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
 	}
+	std::list<segment_type> segments;
+	Planner.GetRoadmapSegments(segments);
+	for (const segment_type& segment : segments)
+	{
+		DrawDebugLine(GetWorld(), LidarToWorldLocation(segment.low()), LidarToWorldLocation(segment.high()),
+			FColor(64, 64, 255), false, 0.f, 5.f, 10.f);
+	}
+
 	// std::vector<segment_type> Plan;
 	// Planner.GetPlan(Plan);
 	// DrawRoadmap(Roadmap);
@@ -77,7 +85,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	construct_voronoi(Walls.begin(), Walls.end(), &VDiagram);
 
 	// Visualize the voronoi diagram
-	DrawVD();
+	//DrawVD();
 
 	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
 	point_type track_opening;

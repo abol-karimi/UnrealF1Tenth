@@ -4,38 +4,15 @@
 #include "VoronoiGraph.h"
 
 THIRD_PARTY_INCLUDES_START
-#include <boost/polygon/voronoi.hpp>
+#include "voronoi_visual_utils.hpp"
 THIRD_PARTY_INCLUDES_END
-
-typedef boost::polygon::voronoi_diagram<coordinate_type> VD;
-typedef VD::cell_type cell_type;
-typedef VD::cell_type::source_index_type source_index_type;
-typedef VD::cell_type::source_category_type source_category_type;
-typedef VD::edge_type edge_type;
-typedef VD::cell_container_type cell_container_type;
-typedef VD::cell_container_type vertex_container_type;
-typedef VD::edge_container_type edge_container_type;
-typedef VD::const_cell_iterator const_cell_iterator;
-typedef VD::const_vertex_iterator const_vertex_iterator;
-typedef VD::const_edge_iterator const_edge_iterator;
-typedef VD::vertex_type vertex_type;
 
 THIRD_PARTY_INCLUDES_START
 #include <boost/property_map/property_map.hpp>
 #include <boost/tuple/tuple.hpp>
 THIRD_PARTY_INCLUDES_END
 
-typedef boost::property_map<Roadmap_t, boost::vertex_coordinates_t>::type coordinates_map_t; // The type of the mapping from a vertex descriptor to its coordiantes property
-typedef boost::property_map<Roadmap_t, boost::edge_weight_t>::type weight_map_t;
-
-THIRD_PARTY_INCLUDES_START
-#include <boost/functional/hash.hpp>
-THIRD_PARTY_INCLUDES_END
 #include <unordered_map>
-
-
-
-
 
 VoronoiGraph::VoronoiGraph()
 {
@@ -46,7 +23,7 @@ VoronoiGraph::~VoronoiGraph()
 }
 
 // Assumes that the Voronoi diagram has only input segments, i.e. no input points.
-point_type retrieve_endpoint(const cell_type& cell, const std::vector<segment_type>& Walls)
+point_type VoronoiGraph::retrieve_endpoint(const cell_type& cell, const std::vector<segment_type>& Walls)
 {
 	source_index_type index = cell.source_index();
 	source_category_type category = cell.source_category();
@@ -59,14 +36,20 @@ point_type retrieve_endpoint(const cell_type& cell, const std::vector<segment_ty
 }
 
 // Assumes that the Voronoi diagram has only input segments, i.e. no input points.
-segment_type retrieve_segment(const cell_type& cell, const std::vector<segment_type>& Walls) {
+segment_type VoronoiGraph::retrieve_segment(const cell_type& cell, const std::vector<segment_type>& Walls) {
 	source_index_type index = cell.source_index();
 	return Walls[index];
 }
 
-void color_close_vertices(const VD& vd, const std::vector<segment_type>& Walls)
+void VoronoiGraph::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge, const std::vector<segment_type>& Walls) {
+	coordinate_type max_dist = 300; // 300 mm = 0.3 m
+	point_type point = edge.cell()->contains_point() ? retrieve_endpoint(*edge.cell(), Walls) : retrieve_endpoint(*edge.twin()->cell(), Walls);
+	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell(), Walls) : retrieve_segment(*edge.cell(), Walls);
+	boost::polygon::voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+}
+
+void VoronoiGraph::color_close_vertices(const VD& vd, const std::vector<segment_type>& Walls)
 {
-	const double allowed_obs_dist = 150.f; // 150 milimeters == 15 centimeters
 	for (const auto& vertex : vd.vertices())
 		vertex.color(0);
 	for (const auto& vertex : vd.vertices())
@@ -76,20 +59,15 @@ void color_close_vertices(const VD& vd, const std::vector<segment_type>& Walls)
 		if (cell->contains_point())
 		{
 			point_type endpoint = retrieve_endpoint(*cell, Walls);
-			if (euclidean_distance(voronoi_point, endpoint) < allowed_obs_dist)
+			if (euclidean_distance(endpoint, voronoi_point) < allowed_obs_dist * 1000.f) // *1000.f to convert to milimeters
 				vertex.color(1);
 		}
 		else { // i.e. cell contains a segment
 			segment_type segment = retrieve_segment(*cell, Walls);
-			if (euclidean_distance(segment, voronoi_point) < allowed_obs_dist)
+			if (euclidean_distance(segment, voronoi_point) < allowed_obs_dist * 1000.f)
 				vertex.color(1);
 		}
 	}
-}
-
-void color_close_edges(const VD& vd, const std::vector<segment_type>& Walls)
-{
-
 }
 
 void VoronoiGraph::MakeRoadmap(const std::vector<segment_type>& Walls)
@@ -101,34 +79,94 @@ void VoronoiGraph::MakeRoadmap(const std::vector<segment_type>& Walls)
 	VD VDiagram;
 	construct_voronoi(Walls.begin(), Walls.end(), &VDiagram);
 
+	// Maintain a mapping from Voronoi vertices to roadmap vertices
+	std::unordered_map<const vertex_type*, vertex_descriptor> voronoi_to_roadmap; 
+
 	// Color too-close (to the walls) Voronoi vertices,
 	// then add the colorless to the roadmap.
 	color_close_vertices(VDiagram, Walls);
-	typedef typename boost::graph_traits<Roadmap_t>::vertex_descriptor vertex_descriptor; 	
-	std::unordered_map<const vertex_type*, vertex_descriptor> voronoi_to_roadmap; // Maintain a mapping from Voronoi vertices to roadmap vertices
-
 	for (const_vertex_iterator it = VDiagram.vertices().begin(); it != VDiagram.vertices().end(); ++it) {
 		// If vertex is too close to the walls, skip.
 		if (it->color() == 1)
 			continue;
-
-		// Add vertex to the graph and set its coordinates property
-		point_type newvertex_coordinates(it->x() / 1000.f, it->y() / 1000.f); // The coordinates are in millimeters in VDiagram, but in meters in the roadmap.
-		vertex_descriptor newvertex = add_vertex(Roadmap);
+		// Add vertex to the graph
+		vertex_descriptor newvertex = add_roadmap_vertex(point_type(it->x() / 1000.f, it->y() / 1000.f)); // The coordinates are in millimeters in VDiagram, but in meters in the roadmap.
 		voronoi_to_roadmap.insert({ &(*it), newvertex });
-		coordinates_map_t coordinates_map = get(boost::vertex_coordinates, Roadmap);
-		coordinates_map[newvertex] = newvertex_coordinates;
 	}
-	// Color too-close (to the walls) Voronoi edges
-	// Add far-enough Voronoi edges to the roadmap
-	//roadmap_vertex = voronoi_to_roadmap.find(vertex_ptr)
+
+	for (const auto& edge : VDiagram.edges())
+	{
+		if (!edge.is_primary())
+			continue;
+		if (edge.is_finite() && edge.vertex0()->color() == 0 && edge.vertex1()->color() == 0)
+		{
+			if (edge.is_linear()) 
+				add_linear_edge(edge, voronoi_to_roadmap, Walls);
+			else
+				add_curved_edge(edge, voronoi_to_roadmap, Walls);
+		}
+	}
 }
 
+VoronoiGraph::vertex_descriptor VoronoiGraph::add_roadmap_vertex(point_type point)
+{
+	vertex_descriptor newvertex = add_vertex(Roadmap);
+	coordinates_map_t coordinates_map = get(boost::vertex_coordinates, Roadmap);
+	coordinates_map[newvertex] = point;
+	return newvertex;
+}
+
+VoronoiGraph::edge_descriptor VoronoiGraph::add_roadmap_edge(vertex_descriptor vertex0, vertex_descriptor vertex1, double weight)
+{
+	edge_descriptor roadmap_edge;
+	bool inserted;
+	tie(roadmap_edge, inserted) = add_edge(vertex0, vertex1, Roadmap);
+	weight_map_t weight_map = get(boost::edge_weight, Roadmap);
+	weight_map[roadmap_edge] = weight;
+	return roadmap_edge;
+}
+
+/// Assumes the roadmap vertices have been added before.
+void VoronoiGraph::add_linear_edge(const edge_type& edge, std::unordered_map<const vertex_type*, vertex_descriptor>& voronoi_to_roadmap, const std::vector<segment_type>& Walls)
+{
+	const vertex_descriptor roadmap_vertex0 = voronoi_to_roadmap.at(edge.vertex0());
+	const vertex_descriptor roadmap_vertex1 = voronoi_to_roadmap.at(edge.vertex1());
+	point_type p0(edge.vertex0()->x(), edge.vertex0()->y());
+	point_type p1(edge.vertex1()->x(), edge.vertex1()->y());
+	add_roadmap_edge(roadmap_vertex0, roadmap_vertex1, euclidean_distance(p0, p1) / 1000.f);
+}
+
+void VoronoiGraph::add_curved_edge(const edge_type& edge, std::unordered_map<const vertex_type*, vertex_descriptor>& voronoi_to_roadmap, const std::vector<segment_type>& Walls)
+{
+	point_type vertex0(edge.vertex0()->x(), edge.vertex0()->y());
+	point_type vertex1(edge.vertex1()->x(), edge.vertex1()->y());
+	std::vector<point_type> samples;
+	samples.push_back(vertex0);
+	samples.push_back(vertex1);
+	sample_curved_edge(edge, &samples, Walls);
+
+	// Check that all segments of the discretization are far enough from the focus of the parabola
+	point_type focus = edge.cell()->contains_point() ? retrieve_endpoint(*edge.cell(), Walls) : retrieve_endpoint(*edge.twin()->cell(), Walls);
+	for (std::size_t i = 0; i < samples.size() - 1; ++i)
+	{
+		segment_type segment(samples[i], samples[i + 1]);
+		if(euclidean_distance(segment, focus) < allowed_obs_dist * 1000.f)
+			return;
+	}
+	std::vector<vertex_descriptor> vertices(samples.size());
+	vertices[0] = voronoi_to_roadmap.at(edge.vertex0());
+	vertices[samples.size()-1] = voronoi_to_roadmap.at(edge.vertex1());
+	// Add all the new points from discretization to the roadmap
+	for (std::size_t i = 1; i < samples.size() - 1; ++i)
+		vertices[i] = add_roadmap_vertex(scale_down(samples[i], 1000));
+	// Add all the edges of the discretization
+	for (std::size_t i = 0; i < samples.size() - 1; ++i)
+		add_roadmap_edge(vertices[i], vertices[i + 1], euclidean_distance(samples[i], samples[i + 1]));
+}
 
 void VoronoiGraph::GetRoadmapPoints(std::list<point_type>& points)
 {
 	using namespace boost;
-
 	coordinates_map_t coordinates_map = get(vertex_coordinates, Roadmap);
 	graph_traits<Roadmap_t>::vertex_iterator vi, vi_end;
 	point_type coords;
@@ -136,6 +174,21 @@ void VoronoiGraph::GetRoadmapPoints(std::list<point_type>& points)
 	{
 		coords = get(coordinates_map, *vi);
 		points.push_back(coords);
+	}
+}
+
+void VoronoiGraph::GetRoadmapSegments(std::list<segment_type>& segments)
+{
+	using namespace boost;
+	coordinates_map_t coordinates_map = get(vertex_coordinates, Roadmap);
+	graph_traits<Roadmap_t>::edge_iterator ei, ei_end;
+	for (tie(ei, ei_end) = edges(Roadmap); ei != ei_end; ++ei)
+	{
+		vertex_descriptor vertex0 = source(*ei, Roadmap);
+		vertex_descriptor vertex1 = target(*ei, Roadmap);
+		point_type point0 = get(coordinates_map, vertex0);
+		point_type point1 = get(coordinates_map, vertex1);
+		segments.push_back(segment_type(point0, point1));
 	}
 }
 
