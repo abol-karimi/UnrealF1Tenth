@@ -8,9 +8,24 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 THIRD_PARTY_INCLUDES_START
+#include <boost/graph/graph_traits.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/tuple/tuple.hpp>
 THIRD_PARTY_INCLUDES_END
+
+THIRD_PARTY_INCLUDES_START
+#pragma push_macro("check")
+#undef check
+#include <boost/graph/dijkstra_shortest_paths_no_color_map.hpp>
+#pragma pop_macro("check")
+THIRD_PARTY_INCLUDES_END
+namespace boost
+{
+#ifdef BOOST_NO_EXCEPTIONS
+	void throw_exception(std::exception const & e)
+	{} // user defined
+#endif
+}
 
 #include <unordered_map>
 
@@ -42,10 +57,9 @@ segment_type VoronoiGraph::retrieve_segment(const cell_type& cell, const std::ve
 }
 
 void VoronoiGraph::sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge, const std::vector<segment_type>& Walls) {
-	coordinate_type max_dist = 300; // 300 mm = 0.3 m
 	point_type point = edge.cell()->contains_point() ? retrieve_endpoint(*edge.cell(), Walls) : retrieve_endpoint(*edge.twin()->cell(), Walls);
 	segment_type segment = edge.cell()->contains_point() ? retrieve_segment(*edge.twin()->cell(), Walls) : retrieve_segment(*edge.cell(), Walls);
-	boost::polygon::voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_dist, sampled_edge);
+	boost::polygon::voronoi_visual_utils<coordinate_type>::discretize(point, segment, max_discretization_error*1000.f, sampled_edge);
 }
 
 void VoronoiGraph::color_close_vertices(const VD& vd, const std::vector<segment_type>& Walls)
@@ -89,7 +103,6 @@ void VoronoiGraph::MakeRoadmap(const std::vector<segment_type>& Walls)
 		// If vertex is too close to the walls, skip.
 		if (it->color() == 1)
 			continue;
-		// Add vertex to the graph
 		vertex_descriptor newvertex = add_roadmap_vertex(point_type(it->x() / 1000.f, it->y() / 1000.f)); // The coordinates are in millimeters in VDiagram, but in meters in the roadmap.
 		voronoi_to_roadmap.insert({ &(*it), newvertex });
 	}
@@ -164,7 +177,7 @@ void VoronoiGraph::add_curved_edge(const edge_type& edge, std::unordered_map<con
 		add_roadmap_edge(vertices[i], vertices[i + 1], boost::polygon::euclidean_distance(samples[i], samples[i + 1]) / 1000.f);
 }
 
-void VoronoiGraph::GetRoadmapPoints(std::list<point_type>& points)
+void VoronoiGraph::GetRoadmapPoints(std::list<point_type>& points) // TODO: Change to vector and reserve space
 {
 	using namespace boost;
 	coordinates_map_t coordinates_map = get(vertex_coordinates, Roadmap);
@@ -177,7 +190,7 @@ void VoronoiGraph::GetRoadmapPoints(std::list<point_type>& points)
 	}
 }
 
-void VoronoiGraph::GetRoadmapSegments(std::list<segment_type>& segments)
+void VoronoiGraph::GetRoadmapSegments(std::list<segment_type>& segments) // TODO: Change to vector and reserve space
 {
 	using namespace boost;
 	coordinates_map_t coordinates_map = get(vertex_coordinates, Roadmap);
@@ -192,14 +205,48 @@ void VoronoiGraph::GetRoadmapSegments(std::list<segment_type>& segments)
 	}
 }
 
-void VoronoiGraph::GetPlan(std::vector<segment_type>& OutPlan)
+VoronoiGraph::vertex_descriptor VoronoiGraph::get_closest_vertex(point_type point)
 {
-	point_type TrackOpening;
-	//if (!get_trackopening(TrackOpening, Walls, 300)) // 300 milimeters = 30 centimeters
-	//{
-	//	// print "no track opening found"
-	//	return;
-	//}
+	using namespace boost;
+	coordinates_map_t coordinates_map = get(vertex_coordinates, Roadmap);
+	graph_traits<Roadmap_t>::vertex_iterator vi, vi_end;
+	double closest_distance = std::numeric_limits<double>::max(); // infinity
+	vertex_descriptor current_vertex;
+	for (tie(vi, vi_end) = vertices(Roadmap); vi != vi_end; ++vi)
+	{
+		point_type current_point = get(coordinates_map, *vi);
+		double current_distance = polygon::euclidean_distance(point, current_point);
+		if (current_distance < closest_distance)
+		{
+			current_vertex = *vi;
+			closest_distance = current_distance;
+		}
+	}
+	return current_vertex;
+}
+
+void VoronoiGraph::GetPlan(std::vector<point_type>& OutPlan, const std::vector<segment_type>& Walls)
+{
+	point_type track_opening;
+	float steering_ratio = 0.f;
+	if (!get_trackopening(track_opening, Walls, min_track_width * 1000)) // convert to mm
+		return;
+	vertex_descriptor source = get_closest_vertex(point_type(0.f, 0.f));
+	// shortest paths from source
+	std::vector<vertex_descriptor> pred(num_vertices(Roadmap));
+	std::vector<double> distances(num_vertices(Roadmap));
+	dijkstra_shortest_paths_no_color_map(Roadmap, source,
+		predecessor_map(boost::make_iterator_property_map(pred.begin(), get(boost::vertex_index, Roadmap))).
+		distance_map(boost::make_iterator_property_map(distances.begin(), get(boost::vertex_index, Roadmap))));
+
+	vertex_descriptor vertex = get_closest_vertex(track_opening), child;
+	coordinates_map_t coordinates_map = get(boost::vertex_coordinates, Roadmap);
+	do {
+		point_type point = get(coordinates_map, vertex);
+		OutPlan.push_back(point);
+		child = vertex;
+		vertex = pred[child];
+	} while (vertex != child);
 }
 
 bool VoronoiGraph::get_trackopening(point_type& OutTrackOpening,
@@ -211,9 +258,9 @@ bool VoronoiGraph::get_trackopening(point_type& OutTrackOpening,
 	int max_cos_index = -1; // If there is any gaps, the index will be updated to nonnegative.
 	for (std::size_t i = 0; i + 1 < Walls.size(); ++i)
 	{
-		if (euclidean_distance(Walls[i].high(), Walls[i + 1].low()) > min_gap)
+		if (boost::polygon::euclidean_distance(Walls[i].high(), Walls[i + 1].low()) > min_gap)
 		{
-			point_type endpoint = Walls[i].high();
+			point_type endpoint = Walls[i].high(); // TODO: use boost::geometry::centroid
 			convolve(endpoint, Walls[i + 1].low()); // add the seond point to the first
 			point_type midpoint = scale_down(endpoint, 2);
 			discontinuities.push_back(midpoint);

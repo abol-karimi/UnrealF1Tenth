@@ -31,11 +31,13 @@ public:
 	VoronoiGraph();
 	~VoronoiGraph();
 	void MakeRoadmap(const std::vector<segment_type>& Walls);
-	void GetPlan(std::vector<segment_type>& OutPlan);
+	void GetPlan(std::vector<point_type>& OutPlan, const std::vector<segment_type>& Walls);
 	void GetRoadmapPoints(std::list<point_type>& points);
 	void GetRoadmapSegments(std::list<segment_type>& segments);
 
 	const double allowed_obs_dist = 0.2; // 0.2 m = 20 cm 
+	const double max_discretization_error = 0.3;
+	const double min_track_width = 1.5f;
 
 private:
 	typedef boost::polygon::voronoi_diagram<coordinate_type> VD;
@@ -71,5 +73,6 @@ private:
 	void add_curved_edge(const edge_type& edge, std::unordered_map<const vertex_type*, vertex_descriptor>& voronoi_to_roadmap, const std::vector<segment_type>& Walls);
 	vertex_descriptor add_roadmap_vertex(point_type point);
 	edge_descriptor add_roadmap_edge(vertex_descriptor vertex0, vertex_descriptor vertex1, double weight);
+	vertex_descriptor get_closest_vertex(point_type point);
 };
 

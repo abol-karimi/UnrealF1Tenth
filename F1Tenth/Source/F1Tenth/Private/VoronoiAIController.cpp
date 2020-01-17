@@ -55,24 +55,18 @@ void AVoronoiAIController::Tick(float DeltaTime)
 
 	// Get the plan as list of line segments and draw it
 	Planner.MakeRoadmap(Walls);
-	std::list<point_type> points;
-	Planner.GetRoadmapPoints(points);
-	for (const point_type& point : points)
-	{
-		DrawDebugSphere(GetWorld(), LidarToWorldLocation(point),
-			15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
-	}
-	std::list<segment_type> segments;
-	Planner.GetRoadmapSegments(segments);
-	for (const segment_type& segment : segments)
-	{
-		DrawDebugLine(GetWorld(), LidarToWorldLocation(segment.low()), LidarToWorldLocation(segment.high()),
-			FColor(64, 64, 255), false, 0.f, 5.f, 10.f);
-	}
+	DrawRoadmap();
 
-	// std::vector<segment_type> Plan;
-	// Planner.GetPlan(Plan);
-	// DrawRoadmap(Roadmap);
+	 std::vector<point_type> Plan;
+	 Planner.GetPlan(Plan, Walls);
+	 if (Plan.size() > 1)
+	 {
+		 for (auto si = Plan.begin(); si != Plan.end()-1; ++si)
+		 {
+			 DrawDebugLine(GetWorld(), LidarToWorldLocation(*si), LidarToWorldLocation(*(si+1)), FColor(255, 255, 255), false, 0.f, 20.f, 3.f);
+		 }
+	 }
+	// DrawPlan(Plan);
 
 	// if (Plan is empty)
 		// error: no plan found!
@@ -83,9 +77,6 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	// Make a voronoi diagram
 	VDiagram.clear();
 	construct_voronoi(Walls.begin(), Walls.end(), &VDiagram);
-
-	// Visualize the voronoi diagram
-	//DrawVD();
 
 	// Get the discontinuity midpoint with the least angle from the x-axis (vehicle forward direction)
 	point_type track_opening;
@@ -154,49 +145,22 @@ segment_type AVoronoiAIController::retrieve_segment(const cell_type& cell) {
 	return Walls[index];
 }
 
-void AVoronoiAIController::DrawVD()
+void AVoronoiAIController::DrawRoadmap()
 {
-	for (const_edge_iterator it = VDiagram.edges().begin(); it != VDiagram.edges().end(); ++it)
+	std::list<point_type> points;
+	Planner.GetRoadmapPoints(points);
+	for (const point_type& point : points)
 	{
-		if (it->is_finite() && it->is_primary())
-		{
-			if (isObstacle(point_type(it->vertex0()->x(), it->vertex0()->y())))
-				continue;
-			else if (isObstacle(point_type(it->vertex1()->x(), it->vertex1()->y())))
-				continue;
-			if (it->is_linear())
-			{
-				point_type vertex0(it->vertex0()->x() / 1000.f, it->vertex0()->y() / 1000.f);
-				point_type vertex1(it->vertex1()->x() / 1000.f, it->vertex1()->y() / 1000.f);
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(vertex0), LidarToWorldLocation(vertex1), FColor(64, 64, 255), false, 0.f, 5.f, 10.f);
-			}
-			else if (it->is_curved())
-			{
-				point_type vertex0(it->vertex0()->x(), it->vertex0()->y());
-				point_type vertex1(it->vertex1()->x(), it->vertex1()->y());
-				std::vector<point_type> samples;
-				samples.push_back(vertex0);
-				samples.push_back(vertex1);
-				sample_curved_edge(*it, &samples);
-				for (std::size_t i = 0; i + 1 < samples.size(); ++i)
-				{
-					point_type sample_i(samples[i].x() / 1000.f, samples[i].y() / 1000.f);
-					point_type sample_ii(samples[i + 1].x() / 1000.f, samples[i + 1].y() / 1000.f);
-					DrawDebugLine(GetWorld(), LidarToWorldLocation(sample_i), LidarToWorldLocation(sample_ii), FColor(0, 0, 64), false, 0.f, 5.f, 10.f);
-				}
-			}
-		}
+		DrawDebugSphere(GetWorld(), LidarToWorldLocation(point),
+			15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
 	}
-	for (const_vertex_iterator it = VDiagram.vertices().begin(); it != VDiagram.vertices().end(); ++it)
+	std::list<segment_type> segments;
+	Planner.GetRoadmapSegments(segments);
+	for (const segment_type& segment : segments)
 	{
-		if (true/*!it->is_degenerate()*/)
-		{
-			//point_type vertex(it->x() / 1000.f, it->y() / 1000.f);
-			//DrawDebugSphere(GetWorld(), LidarToWorldLocation(vertex),
-			//	15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
-		}
+		DrawDebugLine(GetWorld(), LidarToWorldLocation(segment.low()), LidarToWorldLocation(segment.high()),
+			FColor(64, 64, 255), false, 0.f, 5.f, 10.f);
 	}
-
 }
 
 
@@ -239,27 +203,20 @@ bool AVoronoiAIController::get_trackopening(point_type& OutTrackOpening, double 
 bool AVoronoiAIController::get_closest_vertex(std::size_t& OutIndex, point_type point)
 {
 	if (VDiagram.vertices().size() == 0)
-	{
 		return false;
-	}
 	// If vd_vertics() is nonempty, then there must be a closest nonobstacle vertex
 	double closest_distance = 1e10; // infinity
 	std::size_t current_index = 0;
-	for (const_vertex_iterator it = VDiagram.vertices().begin(); it != VDiagram.vertices().end(); ++it)
+	for (const_vertex_iterator it = VDiagram.vertices().begin(); it != VDiagram.vertices().end(); ++it, ++current_index)
 	{
 		if (isObstacle(point_type(it->x(), it->y()))) // candid_point is an endpoint of an input segment
-		{
-			current_index++;
 			continue;
-		}
-
 		double candid_distance = euclidean_distance(point_type(it->x(), it->y()), point);
 		if (candid_distance < closest_distance)
 		{
 			closest_distance = candid_distance;
 			OutIndex = current_index;
 		}
-		current_index++;
 	}
 	return true;
 }
@@ -333,8 +290,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 			for (std::vector<point_type>::iterator it = path.end() - 1; it != path.begin(); --it)
 			{
 				// PathMaker gives points in meters
-				// UE_LOG(LogTemp, Warning, TEXT("*it: x: %f, y: %f"), (*it).x(), (*it).y());
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 255, 255), false, 0.f, 20.f, 3.f);
+				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 0, 0), false, 0.f, 21.f, 2.f);
 				if ((*it).x() > 0 // point in front of the car
 					&& euclidean_distance(*(it - 1), rear_axle) < PurepursuitLookahead) // next point too close.
 					// TODO interpolate based on distance instead of giving an endpoint.

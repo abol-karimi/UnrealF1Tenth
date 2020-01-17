@@ -31,7 +31,7 @@ private:
 	void sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge);
 	point_type retrieve_point(const cell_type& cell);
 	segment_type retrieve_segment(const cell_type& cell);
-	void DrawVD(); // Pass pose of Lidar
+	void DrawRoadmap(); // Pass pose of Lidar
 	bool get_trackopening(point_type& OutTrackOpening, double min_gap);
 	bool get_closest_vertex(std::size_t& OutIndex, point_type point);
 	bool get_purepursuit_goal(point_type& OutGoalPoint, point_type track_opening);
