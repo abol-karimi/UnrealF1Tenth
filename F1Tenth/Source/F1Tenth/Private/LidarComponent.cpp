@@ -73,10 +73,6 @@ void ULidarComponent::Polylinize(std::vector<segment_type>& OutLineSegments)
 				GetWorld(),
 				LidarToWorldLocation(point_type(x1, y1)),
 				LidarToWorldLocation(point_type(x2, y2)), FColor(0, 255, 0), false, 0.f, 1.f, 10.f);
-			x1 *= 1000.f;
-			y1 *= 1000.f;
-			x2 *= 1000.f;
-			y2 *= 1000.f;
 			OutLineSegments.push_back(segment_type(point_type(x1, y1), point_type(x2, y2))); // TODO what lp and hp? Any requiremtns on the order of points?
 		}
 	}

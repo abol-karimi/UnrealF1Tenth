@@ -8,6 +8,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "LidarComponent.generated.h"
 
+// TODO: replace with boost types (geometry, polygon, or uBLAS::vector)
 struct PointFloat {
 	float x;
 	float y;
@@ -44,7 +45,7 @@ private:
 
 private:
 // Private properties
-	float DiscontinuityThreshold = 0.7; // cm
+	float DiscontinuityThreshold = 0.3; // in meters
 	float AngularResolution = 0.25; // 4 measurements per angle
 	float Range = 17; // Maximum detectable distance in meters
 	float OutOfRange = 65.533; // Value to return if distance > LidarRange

@@ -51,7 +51,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	Lidar->Scan();
 
 	// Make a set of polylines out of lidar 2D point cloud
-	Lidar->Polylinize(Walls);
+	Lidar->Polylinize(Walls); // Returned coordinates are in milimeters, to be ready for the Voronoi algorithm.
 
 	// Get the plan as list of line segments and draw it
 	Planner.MakeRoadmap(Walls);
@@ -63,7 +63,7 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	 {
 		 for (auto si = Plan.begin(); si != Plan.end()-1; ++si)
 		 {
-			 DrawDebugLine(GetWorld(), LidarToWorldLocation(*si), LidarToWorldLocation(*(si+1)), FColor(255, 255, 255), false, 0.f, 20.f, 3.f);
+			 DrawDebugLine(GetWorld(), LidarToWorldLocation(*si), LidarToWorldLocation(*(si+1)), FColor(255, 255, 255), false, 0.f, 20.f, 7.f);
 		 }
 	 }
 	// DrawPlan(Plan);
@@ -75,6 +75,11 @@ void AVoronoiAIController::Tick(float DeltaTime)
 		// command steering and velocity
 
 	// Make a voronoi diagram
+	 for (size_t i = 0; i < Walls.size(); ++i)
+	 {
+		 segment_type seg = Walls[i];
+		 Walls[i] = boost::polygon::scale_up(seg, 1000);
+	 }
 	VDiagram.clear();
 	construct_voronoi(Walls.begin(), Walls.end(), &VDiagram);
 
@@ -154,7 +159,7 @@ void AVoronoiAIController::DrawRoadmap()
 		DrawDebugSphere(GetWorld(), LidarToWorldLocation(point),
 			15.f, 5.f, FColor(0, 0, 0), false, 0.f, 10.f, 1.f);
 	}
-	std::list<segment_type> segments;
+	std::vector<segment_type> segments;
 	Planner.GetRoadmapSegments(segments);
 	for (const segment_type& segment : segments)
 	{
@@ -177,11 +182,7 @@ bool AVoronoiAIController::get_trackopening(point_type& OutTrackOpening, double 
 			convolve(endpoint, Walls[i + 1].low()); // add the seond point to the first
 			point_type midpoint = scale_down(endpoint, 2);
 			discontinuities.push_back(midpoint);
-			DrawDebugSphere(GetWorld(),
-				LidarToWorldLocation(point_type(midpoint.x() / 1000.f, midpoint.y() / 1000.f)),
-				10.f, 10.f, FColor(255, 255, 255), false, 0.f, 0.f, 1.f);
 			double cos = midpoint.x() / euclidean_distance(midpoint, point_type(0, 0));
-			//UE_LOG(LogTemp, Warning, TEXT("i: %d, x: %f, y:%f"), i, midpoint.x(), midpoint.y());
 			if (cos > max_cos)
 			{
 				max_cos_index = discontinuities.size() - 1; // current discontinuity is closest to front of the car
@@ -290,7 +291,7 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 			for (std::vector<point_type>::iterator it = path.end() - 1; it != path.begin(); --it)
 			{
 				// PathMaker gives points in meters
-				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 0, 0), false, 0.f, 21.f, 2.f);
+				DrawDebugLine(GetWorld(), LidarToWorldLocation(*it), LidarToWorldLocation(*(it - 1)), FColor(255, 0, 0), false, 0.f, 21.f, 5.f);
 				if ((*it).x() > 0 // point in front of the car
 					&& euclidean_distance(*(it - 1), rear_axle) < PurepursuitLookahead) // next point too close.
 					// TODO interpolate based on distance instead of giving an endpoint.
@@ -328,6 +329,44 @@ bool AVoronoiAIController::get_purepursuit_goal(point_type& OutGoalPoint, point_
 
 }
 
+bool AVoronoiAIController::get_purepursuit_goal2(point_type& OutGoalPoint, std::vector<point_type> Plan)
+{
+	// Points are in lidar coordinates.
+	//point_type plan_start = Plan[0];
+	//point_type plan_end = Plan[Plan.size()-1];
+	//point_type rear_axle(-wheelbase, 0);
+	//if (euclidean_distance(Plan[Plan.size() - 1], rear_axle) < PurepursuitLookahead)
+	//{
+	//	OutGoalPoint = Plan[Plan.size() - 1];
+	//	return true;
+	//}
+	//for (std::vector<point_type>::iterator it = Plan.end() - 1; it != Plan.begin(); --it)
+	//{
+	//	if ((*it).x() > 0 // point in front of the car
+	//		&& euclidean_distance(*(it - 1), rear_axle) < PurepursuitLookahead) // next point too close.
+	//		// TODO interpolate based on distance instead of giving an endpoint.
+	//	{
+	//		double x1 = (it - 1)->x() + wheelbase; // Convert lidar coordinates to rear axle coordinates (assuming lidar at front axle)
+	//		double y1 = (it - 1)->y();
+	//		double x2 = it->x() + wheelbase;
+	//		double y2 = it->y();
+	//		double dx = x2 - x1;
+	//		double dy = y2 - y1;
+	//		double A = dx * dx + dy * dy;
+	//		double B = x1 * dx + y1 * dy;
+	//		double C = x1 * x1 + y1 * y1 - PurepursuitLookahead * PurepursuitLookahead;
+	//		double t = (-B + sqrt(B*B - A * C)) / A;
+	//		OutGoalPoint = point_type(x1 + t * dx - wheelbase, y1 + t * dy); // Convert back to lidar coordinates
+	//		return true;
+	//	}
+	//}
+	//// If reached here, the source_point is not within distance_to_purepursuit_goal meters of rear axle
+	//double x1 = plan_start.x() + wheelbase;
+	//double y1 = plan_start.y();
+	//double d = sqrt(x1*x1 + y1 * y1);
+	//OutGoalPoint = point_type(x1 / d * PurepursuitLookahead - wheelbase, y1 / d * PurepursuitLookahead);
+	return true; // TODO pushback rear axel to path to avoid this extra case
+}
 
 bool AVoronoiAIController::isObstacle(point_type point) // input point in millimeters
 {

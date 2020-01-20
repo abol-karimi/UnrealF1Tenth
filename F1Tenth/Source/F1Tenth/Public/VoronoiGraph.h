@@ -33,9 +33,9 @@ public:
 	void MakeRoadmap(const std::vector<segment_type>& Walls);
 	void GetPlan(std::vector<point_type>& OutPlan, const std::vector<segment_type>& Walls);
 	void GetRoadmapPoints(std::list<point_type>& points);
-	void GetRoadmapSegments(std::list<segment_type>& segments);
+	void GetRoadmapSegments(std::vector<segment_type>& segments);
 
-	const double allowed_obs_dist = 0.2; // 0.2 m = 20 cm 
+	const double allowed_obs_dist = 0.3; // in meters 
 	const double max_discretization_error = 0.3;
 	const double min_track_width = 1.5f;
 
@@ -62,17 +62,23 @@ private:
 	typedef boost::property_map<Roadmap_t, boost::edge_weight_t>::type weight_map_t;
 
 	Roadmap_t Roadmap;
+	vertex_descriptor start_vertex;
 	bool get_trackopening(point_type& OutTrackOpening, const std::vector<segment_type>& Walls, double min_gap);
+	void add_start_vertex();
+	void add_finish_vertex();
+
 
 	// Voronoi diagram processing
 	point_type retrieve_endpoint(const cell_type& cell, const std::vector<segment_type>& Walls);
 	segment_type retrieve_segment(const cell_type& cell, const std::vector<segment_type>& Walls);
 	void sample_curved_edge(const edge_type& edge, std::vector<point_type>* sampled_edge, const std::vector<segment_type>& Walls);
 	void color_close_vertices(const VD& vd, const std::vector<segment_type>& Walls);
-	void add_linear_edge(const edge_type& edge, std::unordered_map<const vertex_type*, vertex_descriptor>& voronoi_to_roadmap, const std::vector<segment_type>& Walls);
+	void add_linear_edge(const edge_type& edge, std::unordered_map<const vertex_type*, vertex_descriptor>& voronoi_to_roadmap);
 	void add_curved_edge(const edge_type& edge, std::unordered_map<const vertex_type*, vertex_descriptor>& voronoi_to_roadmap, const std::vector<segment_type>& Walls);
 	vertex_descriptor add_roadmap_vertex(point_type point);
+	edge_descriptor add_roadmap_edge(vertex_descriptor vertex0, vertex_descriptor vertex1);
 	edge_descriptor add_roadmap_edge(vertex_descriptor vertex0, vertex_descriptor vertex1, double weight);
 	vertex_descriptor get_closest_vertex(point_type point);
+	VoronoiGraph::edge_descriptor get_closest_edge(point_type point);
 };
 

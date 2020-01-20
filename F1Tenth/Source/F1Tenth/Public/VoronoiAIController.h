@@ -37,13 +37,13 @@ private:
 	bool get_purepursuit_goal(point_type& OutGoalPoint, point_type track_opening);
 	bool isObstacle(point_type point);
 	bool get_closest_front_vertex(std::size_t& OutIndex, point_type point);
-
+	bool get_purepursuit_goal2(point_type& OutGoalPoint, std::vector<point_type> Plan);
 
 private:
 	// Controller properties
 	AF1TenthPawn* ControlledVehicle = nullptr;
 	ULidarComponent* Lidar = nullptr;
-	float MinTrackWidth = 0.7; // cm
+	float MinTrackWidth = 1.5; // m?
 	float PurepursuitLookahead = 1.2; // Distance (in meters) between the rear axel and the goal point
 
 	// Vehicle properties
