@@ -2,11 +2,17 @@
 
 #pragma once
 
-#include "VoronoiDefinitions.h"
+THIRD_PARTY_INCLUDES_START
+#include <boost/polygon/polygon.hpp>
+THIRD_PARTY_INCLUDES_END
 
 #include "CoreMinimal.h"
 #include "Components/StaticMeshComponent.h"
 #include "LidarComponent.generated.h"
+
+typedef double coordinate_type;
+typedef boost::polygon::point_data<coordinate_type> point_type;
+typedef boost::polygon::segment_data<coordinate_type> segment_type;
 
 // TODO: replace with boost types (geometry, polygon, or uBLAS::vector)
 struct PointFloat {
@@ -33,7 +39,7 @@ public:
 	ULidarComponent();
 	void Scan(); // Linetrace to sense distances
 	void Polylinize(std::vector<segment_type>& OutLineSegments, float DiscontinuityThreshold); // Convert raw distances to line segments
-	FVector LidarToWorldLocation(point_type point); // Convert a point in Lidar's xy-coordinates to world's coordinate (for visualization)
+	void GetLidarData(std::vector<point_type>& points);
 
 private:
 // Private methods

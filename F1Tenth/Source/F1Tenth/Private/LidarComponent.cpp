@@ -3,7 +3,6 @@
 
 #include "LidarComponent.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Runtime/Engine/Public/DrawDebugHelpers.h"
 
 #include <vector>
 
@@ -16,7 +15,6 @@ ULidarComponent::ULidarComponent()
 void ULidarComponent::Scan()
 {
 	FHitResult HitResult;
-	FVector HitLocation;
 	FVector LidarLocation = GetComponentLocation();
 	FVector LidarXAxis = GetForwardVector();
 	FVector LidarYAxis = -GetRightVector();
@@ -33,20 +31,23 @@ void ULidarComponent::Scan()
 		if (GetWorld()->LineTraceSingleByChannel(
 			HitResult,
 			StartLocation, 
-			EndLocation,
-			ECollisionChannel::ECC_Visibility)
+			EndLocation, ECollisionChannel::ECC_Visibility)
 			)
-		{
-			HitLocation = HitResult.Location;
-			DrawDebugLine(GetWorld(), StartLocation, HitLocation, FColor(255, 0, 0), false, 0.f, 0.f, 0.f);
-			Distances[i] = (HitLocation - LidarLocation).Size() / 100; //divide by 100 to convert cm to meters
-		}
+			Distances[i] = (HitResult.Location - LidarLocation).Size() / 100; //divide by 100 to convert cm to meters
 		else
-		{
 			Distances[i] = OutOfRange;
-		}
 	}
 
+}
+
+void ULidarComponent::GetLidarData(std::vector<point_type>& points)
+{
+	for (float angle = LidarMinDegree; angle <= LidarMaxDegree; angle += AngularResolution)
+	{
+		PointFloat point(0, 0);
+		if (GetPointAtAngle(point, angle))
+			points.push_back(point_type(point.x, point.y));
+	}
 }
 
 void ULidarComponent::Polylinize(std::vector<segment_type>& OutLineSegments, float DiscontinuityThreshold)
@@ -69,10 +70,6 @@ void ULidarComponent::Polylinize(std::vector<segment_type>& OutLineSegments, flo
 			y1 = NewSegment.p0.y;
 			x2 = NewSegment.p1.x;
 			y2 = NewSegment.p1.y;
-			DrawDebugLine(
-				GetWorld(),
-				LidarToWorldLocation(point_type(x1, y1)),
-				LidarToWorldLocation(point_type(x2, y2)), FColor(0, 255, 0), false, 0.f, 1.f, 10.f);
 			OutLineSegments.push_back(segment_type(point_type(x1, y1), point_type(x2, y2))); // TODO what lp and hp? Any requiremtns on the order of points?
 		}
 	}
@@ -213,13 +210,4 @@ float ULidarComponent::DistanceToLine(PointFloat point, PointFloat p0, PointFloa
 	float numerator_const_term = p1.x * p0.y - p1.y * p0.x;
 	float numerator = abs(delta_y * point.x - delta_x * point.y + numerator_const_term);
 	return (numerator / denominator);
-}
-
-FVector ULidarComponent::LidarToWorldLocation(point_type point)
-{
-	FVector LocationInLidar = FVector(point.x() * 100, point.y() * 100, 0); // *100 to convert to cm
-	FVector LidarLocation = GetComponentLocation();
-	FVector LidarXAxis = GetForwardVector();
-	FVector LidarYAxis = -GetRightVector();
-	return LidarLocation + LidarXAxis * point.x() * 100 + LidarYAxis * point.y() * 100;
 }

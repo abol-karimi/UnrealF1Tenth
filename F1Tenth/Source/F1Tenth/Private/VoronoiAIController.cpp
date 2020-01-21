@@ -78,6 +78,8 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	ControlledVehicle->MoveForward(0.45);
 
 	// Visualizations
+	DrawLaser();
+	DrawWalls();
 	DrawRoadmap();
 	DrawPlan(Plan);
 	// visualize the purepusuit goalpoint
@@ -95,6 +97,33 @@ FVector AVoronoiAIController::LidarToWorldLocation(const point_type& point)
 	FVector LidarXAxis = Lidar->GetForwardVector();
 	FVector LidarYAxis = -Lidar->GetRightVector();
 	return LidarLocation + LidarXAxis * point.x() * 100 + LidarYAxis * point.y() * 100;
+}
+
+void AVoronoiAIController::DrawLaser()
+{
+	std::vector<point_type> points;
+	Lidar->GetLidarData(points);
+	for (const auto& point : points)
+	{
+		double distance = euclidean_distance(point, point_type(0.f, 0.f))*5.f;
+		point_type End = point;
+		point_type Start = point_type(point.x()/distance, point.y()/distance);
+		DrawDebugLine(GetWorld(), 
+			LidarToWorldLocation(Start), 
+			LidarToWorldLocation(End), 
+			FColor(255, 0, 0), false, 0.f, 0.f, 0.f);
+	}	
+}
+
+void AVoronoiAIController::DrawWalls()
+{
+	for (auto& wall : Walls)
+	{
+		DrawDebugLine(
+			GetWorld(),
+			LidarToWorldLocation(wall.low()),
+			LidarToWorldLocation(wall.high()), FColor(0, 255, 0), false, 0.f, 1.f, 10.f);
+	}
 }
 
 void AVoronoiAIController::DrawRoadmap()

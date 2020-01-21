@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "VoronoiDefinitions.h"
 #include <set>
 #include "VoronoiGraph.h"
 
@@ -28,6 +27,8 @@ private:
 	point_type LidarToRearAxle(const point_type& point);
 	point_type RearAxleToLidar(const point_type& point);
 	float pure_pursuit(point_type goal_point);
+	void DrawLaser();
+	void DrawWalls();
 	void DrawRoadmap(); // TODO Pass pose of Lidar
 	void DrawPlan(std::vector<point_type>& Plan);
 	point_type get_plan_at_lookahead(const std::vector<point_type>& Plan);
