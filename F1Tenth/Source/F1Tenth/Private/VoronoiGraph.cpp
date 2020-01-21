@@ -295,7 +295,6 @@ void VoronoiGraph::GetPlan(std::vector<point_type>& OutPlan, const std::vector<s
 	float steering_ratio = 0.f;
 	if (!get_trackopening(track_opening, Walls, min_track_width))
 		return;
-	// vertex_descriptor source = get_closest_vertex(point_type(0.f, 0.f));
 	// shortest paths from source
 	std::vector<vertex_descriptor> pred(num_vertices(Roadmap));
 	std::vector<double> distances(num_vertices(Roadmap));
@@ -311,6 +310,7 @@ void VoronoiGraph::GetPlan(std::vector<point_type>& OutPlan, const std::vector<s
 		child = vertex;
 		vertex = pred[child];
 	} while (vertex != child);
+	std::reverse(std::begin(OutPlan), std::end(OutPlan));
 }
 
 bool VoronoiGraph::get_trackopening(point_type& OutTrackOpening, const std::vector<segment_type>& Walls, double min_gap)
