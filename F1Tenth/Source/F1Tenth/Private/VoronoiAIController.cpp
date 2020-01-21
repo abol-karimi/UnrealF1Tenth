@@ -44,11 +44,11 @@ void AVoronoiAIController::Tick(float DeltaTime)
 	// Linetrace to gather lidar measurements
 	Lidar->Scan();
 
-	// Make a set of polylines out of lidar 2D point cloud
-	Lidar->Polylinize(Walls); // Returned coordinates are in milimeters, to be ready for the Voronoi algorithm.
+	// Make a set of polylines out of lidar 2D point cloud.
+	Lidar->Polylinize(Walls, discontinuity_threshold);
 
 	// Get the plan as list of line segments and draw it
-	Planner.MakeRoadmap(Walls);
+	Planner.MakeRoadmap(Walls, allowed_obs_dist);
 
 	std::vector<point_type> Plan;
 	Planner.GetPlan(Plan, Walls);

@@ -49,7 +49,7 @@ void ULidarComponent::Scan()
 
 }
 
-void ULidarComponent::Polylinize(std::vector<segment_type>& OutLineSegments)
+void ULidarComponent::Polylinize(std::vector<segment_type>& OutLineSegments, float DiscontinuityThreshold)
 {
 	OutLineSegments.clear();
 

@@ -30,12 +30,12 @@ class F1TENTH_API VoronoiGraph
 public:
 	VoronoiGraph();
 	~VoronoiGraph();
-	void MakeRoadmap(const std::vector<segment_type>& Walls);
+	void MakeRoadmap(const std::vector<segment_type>& Walls, float allowed_obs_dist);
 	void GetPlan(std::vector<point_type>& OutPlan, const std::vector<segment_type>& Walls);
 	void GetRoadmapPoints(std::list<point_type>& points);
 	void GetRoadmapSegments(std::vector<segment_type>& segments);
 
-	const double allowed_obs_dist = 0.3; // in meters 
+	double allowed_obs_dist; // in meters 
 	const double max_discretization_error = 0.3;
 	const double min_track_width = 1.5f;
 

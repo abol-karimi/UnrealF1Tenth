@@ -85,8 +85,9 @@ void VoronoiGraph::color_close_vertices(const VD& vd, const std::vector<segment_
 	}
 }
 
-void VoronoiGraph::MakeRoadmap(const std::vector<segment_type>& Walls)
+void VoronoiGraph::MakeRoadmap(const std::vector<segment_type>& Walls, float allowed_obs_dist)
 {
+	this->allowed_obs_dist = allowed_obs_dist;
 	// Clear the previous roadmap
 	Roadmap.clear();
 

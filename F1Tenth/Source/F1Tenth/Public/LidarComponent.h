@@ -32,7 +32,7 @@ class F1TENTH_API ULidarComponent : public UStaticMeshComponent
 public:
 	ULidarComponent();
 	void Scan(); // Linetrace to sense distances
-	void Polylinize(std::vector<segment_type>& OutLineSegments); // Convert raw distances to line segments
+	void Polylinize(std::vector<segment_type>& OutLineSegments, float DiscontinuityThreshold); // Convert raw distances to line segments
 	FVector LidarToWorldLocation(point_type point); // Convert a point in Lidar's xy-coordinates to world's coordinate (for visualization)
 
 private:
@@ -45,7 +45,6 @@ private:
 
 private:
 // Private properties
-	float DiscontinuityThreshold = 0.3; // in meters
 	float AngularResolution = 0.25; // 4 measurements per angle
 	float Range = 17; // Maximum detectable distance in meters
 	float OutOfRange = 65.533; // Value to return if distance > LidarRange
