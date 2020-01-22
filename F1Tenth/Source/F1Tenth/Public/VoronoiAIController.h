@@ -38,7 +38,7 @@ private:
 	AF1TenthPawn* ControlledVehicle = nullptr;
 	ULidarComponent* Lidar = nullptr;
 	float MinTrackWidth = 1.5; // in meters
-	float PurepursuitLookahead = 1.4; // Distance (in meters) between the rear axel and the goal point
+	float PurepursuitLookahead = 2.0; // Distance (in meters) between the rear axel and the goal point
 	float allowed_obs_dist = 0.3f; // in meters
 	float discontinuity_threshold = 0.7f;
 

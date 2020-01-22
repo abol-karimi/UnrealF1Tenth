@@ -14,7 +14,7 @@ public class F1Tenth : ModuleRules
 
 		PublicDefinitions.Add("HMD_MODULE_INCLUDED=1");
 
-		string BoostIncludePath = "C:/boost_1_72_0";
+		string BoostIncludePath = "/home/ak/Downloads/boost_1_72_0";
 		PublicIncludePaths.Add(BoostIncludePath);
 		PrivateIncludePaths.Add(BoostIncludePath);
 		PublicDefinitions.Add("BOOST_NO_EXCEPTIONS");

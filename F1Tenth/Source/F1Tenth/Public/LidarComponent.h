@@ -3,7 +3,10 @@
 #pragma once
 
 THIRD_PARTY_INCLUDES_START
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-std-move"
 #include <boost/polygon/polygon.hpp>
+#pragma clang diagnostic pop
 THIRD_PARTY_INCLUDES_END
 
 #include "CoreMinimal.h"

@@ -6,7 +6,10 @@
 #include <vector>
 
 THIRD_PARTY_INCLUDES_START
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-std-move"
 #include <boost/polygon/polygon.hpp>
+#pragma clang diagnostic pop
 #include <boost/polygon/voronoi.hpp>
 THIRD_PARTY_INCLUDES_END
 typedef double coordinate_type;

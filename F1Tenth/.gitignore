@@ -1,6 +1,10 @@
 # Starter content
 Content/StarterContent
 
+# Linux specific files
+.vscode/
+.kdev4/
+
 # Visual Studio 2015 user specific files
 .vs/
 

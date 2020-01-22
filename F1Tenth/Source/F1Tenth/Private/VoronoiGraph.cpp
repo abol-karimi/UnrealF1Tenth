@@ -20,6 +20,8 @@ THIRD_PARTY_INCLUDES_START
 #include <boost/graph/dijkstra_shortest_paths_no_color_map.hpp>
 #pragma pop_macro("check")
 THIRD_PARTY_INCLUDES_END
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-noreturn"
 namespace boost
 {
 #ifdef BOOST_NO_EXCEPTIONS
@@ -27,6 +29,7 @@ namespace boost
 	{} // user defined
 #endif
 }
+#pragma clang diagnostic pop
 
 #include <unordered_map>
 
