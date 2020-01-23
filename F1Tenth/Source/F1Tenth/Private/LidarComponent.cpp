@@ -6,6 +6,14 @@
 
 #include <vector>
 
+
+#include "ROSIntegration/Classes/RI/Topic.h"
+#include "ROSIntegration/Classes/ROSIntegrationGameInstance.h"
+#include "ROSIntegration/Public/sensor_msgs/LaserScan.h"
+
+#include "Kismet/GameplayStatics.h" 
+
+
 ULidarComponent::ULidarComponent()
 {
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> LidarMesh(TEXT("StaticMesh'/Game/StarterContent/Shapes/Lidar.Lidar'"));
@@ -37,6 +45,33 @@ void ULidarComponent::Scan()
 		else
 			Distances[i] = OutOfRange;
 	}
+
+
+
+	// Initialize a topic
+	UTopic *ExampleTopic = NewObject<UTopic>(UTopic::StaticClass());
+	UROSIntegrationGameInstance* rosinst = Cast<UROSIntegrationGameInstance>(UGameplayStatics::GetGameInstance(this));
+	ExampleTopic->Init(rosinst->ROSIntegrationCore, TEXT("/scan"), TEXT("sensor_msgs/LaserScan"));
+
+	// (Optional) Advertise the topic
+	ExampleTopic->Advertise();
+
+	// Publish a string to the topic
+	ROSMessages::sensor_msgs::LaserScan* LaserData = new ROSMessages::sensor_msgs::LaserScan();
+	LaserData->angle_min = -3*PI/4;
+	LaserData->angle_max = 3*PI/4;
+	LaserData->angle_increment = PI/180.f*AngularResolution;
+	LaserData->time_increment = 0.f;
+	LaserData->scan_time = 0.f;		// time between scans[seconds]
+	LaserData->range_min = 0.01;		// minimum range value[m]
+	LaserData->range_max = Range;		// maximum range value[m]
+	LaserData->ranges = TArray<float>(Distances, 1081);
+	LaserData->intensities = TArray<float>(Distances, 1081);
+
+	TSharedPtr<ROSMessages::sensor_msgs::LaserScan> LaserMessage(LaserData);
+	LaserMessage->header.time = FROSTime::Now();
+	LaserMessage->header.frame_id = "base_laser";
+	ExampleTopic->Publish(LaserMessage);
 
 }
 

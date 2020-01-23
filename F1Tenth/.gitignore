@@ -5,6 +5,9 @@ Content/StarterContent
 .vscode/
 .kdev4/
 
+# ROSIntegration plugin
+Plugins/ROSIntegration
+
 # Visual Studio 2015 user specific files
 .vs/
 

@@ -10,7 +10,9 @@ public class F1Tenth : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "PhysXVehicles", "HeadMountedDisplay" });
+		PublicDependencyModuleNames.AddRange(new string[] {
+			 "Core", "CoreUObject", "Engine", "InputCore", "PhysXVehicles", "HeadMountedDisplay",
+			 "ROSIntegration" });
 
 		PublicDefinitions.Add("HMD_MODULE_INCLUDED=1");
 
