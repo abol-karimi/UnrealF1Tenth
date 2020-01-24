@@ -180,6 +180,7 @@ AF1TenthPawn::AF1TenthPawn()
 	LidarComponent->SetupAttachment(RootComponent);
 	LidarComponent->SetRelativeLocation(FVector(75.f, 0.f, 48.f));
 	LidarComponent->SetRelativeScale3D(FVector(0.2f, 0.2f, 0.2f));
+	LidarComponent->RegisterComponent();
 }
 
 void AF1TenthPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)

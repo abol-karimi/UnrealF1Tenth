@@ -9,6 +9,10 @@ THIRD_PARTY_INCLUDES_START
 #pragma clang diagnostic pop
 THIRD_PARTY_INCLUDES_END
 
+#include "ROSIntegration/Classes/RI/Topic.h"
+#include "ROSIntegration/Classes/ROSIntegrationGameInstance.h"
+#include "ROSIntegration/Public/sensor_msgs/LaserScan.h"
+
 #include "CoreMinimal.h"
 #include "Components/StaticMeshComponent.h"
 #include "LidarComponent.generated.h"
@@ -38,6 +42,9 @@ class F1TENTH_API ULidarComponent : public UStaticMeshComponent
 {
 	GENERATED_BODY()
 
+	virtual void BeginPlay() override;
+	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	
 public:
 	ULidarComponent();
 	void Scan(); // Linetrace to sense distances
@@ -46,6 +53,7 @@ public:
 
 private:
 // Private methods
+	void Publish();
 	bool GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float StepAngle, float DiscontinuityThreshold);
 	bool GetPointAtAngle(PointFloat& OutPoint, float angle_deg); // Calculates the lidar point at angle_deg in Distances[1081] 
 	bool GetDistanceAtAngle(float& OutDistance, float angle_deg); // Returns the corresponding distance in Distances[1081] 
@@ -60,5 +68,11 @@ private:
 	float LidarMinDegree = -135;
 	float LidarMaxDegree = 135; // (LidarMaxDegree - LidarMinDegree)*AngularResolution + 1 = 1081
 	float Distances[1081]; // Array of distances
+
+	UPROPERTY()
+	UTopic *ScanTopic;
+
+	//UPROPERTY()
+	ROSMessages::sensor_msgs::LaserScan* LaserData;
 };
 

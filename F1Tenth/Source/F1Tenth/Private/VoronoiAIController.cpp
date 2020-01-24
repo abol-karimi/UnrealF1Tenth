@@ -39,10 +39,6 @@ void AVoronoiAIController::BeginPlay()
 void AVoronoiAIController::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	// TODO: Skip frame if Deltatime < 25ms (frequency of lidar is 40Hz)
-
-	// Linetrace to gather lidar measurements
-	Lidar->Scan();
 
 	// Make a set of polylines out of lidar 2D point cloud.
 	Lidar->Polylinize(Walls, discontinuity_threshold);
