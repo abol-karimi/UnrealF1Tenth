@@ -25,8 +25,13 @@ class F1TENTH_API AROSAIController : public AAIController
 private:
 	AF1TenthPawn* ControlledVehicle = nullptr;
 	UROSIntegrationGameInstance* rosinst;
+    
+    UPROPERTY()
 	UTopic *MotorDutyCycle;
-	UTopic *ServoPosition;
+	
+    UPROPERTY()
+    UTopic *ServoPosition;
+    
 	std::function<void(TSharedPtr<FROSBaseMsg>)> DutyCycleCallback = [this](TSharedPtr<FROSBaseMsg> msg) -> void
     {
         auto Concrete = StaticCastSharedPtr<ROSMessages::std_msgs::Float32>(msg);

@@ -75,14 +75,14 @@ void ULidarComponent::Publish()
 	LaserData->angle_increment = PI/180.f*AngularResolution;
 	LaserData->time_increment = 0.f;
 	LaserData->scan_time = 0.f;		// time between scans[seconds]
-	LaserData->range_min = 0.01;		// minimum range value[m]
+	LaserData->range_min = 0.021;		// minimum range value[m]
 	LaserData->range_max = Range;		// maximum range value[m]
 	LaserData->ranges = TArray<float>(Distances, 1081);
 	LaserData->intensities = TArray<float>(Distances, 1081);
 
 	TSharedPtr<ROSMessages::sensor_msgs::LaserScan> LaserMessage(LaserData);
 	LaserMessage->header.time = FROSTime::Now();
-	LaserMessage->header.frame_id = "base_laser";
+	LaserMessage->header.frame_id = "laser";
 	ScanTopic->Publish(LaserMessage);
 }
 
