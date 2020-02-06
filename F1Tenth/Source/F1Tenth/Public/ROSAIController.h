@@ -39,7 +39,7 @@ private:
         {
 			float duty_cycle = Concrete->_Data;
             UE_LOG(LogTemp, Log, TEXT("Duty cycle was: %f"), duty_cycle);
-			this->ControlledVehicle->MoveForward(duty_cycle);
+			this->ControlledVehicle->MoveForward(duty_cycle*2.f);
         }
         return;
     };
