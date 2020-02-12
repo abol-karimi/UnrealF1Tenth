@@ -3,10 +3,8 @@
 #pragma once
 
 THIRD_PARTY_INCLUDES_START
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wreturn-std-move"
-#include <boost/polygon/polygon.hpp>
-#pragma clang diagnostic pop
+#include <boost/polygon/segment_data.hpp>
+#include <boost/polygon/point_data.hpp>
 THIRD_PARTY_INCLUDES_END
 
 #include "ROSIntegration/Classes/RI/Topic.h"
