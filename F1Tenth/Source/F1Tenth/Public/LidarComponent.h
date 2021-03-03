@@ -45,26 +45,17 @@ class F1TENTH_API ULidarComponent : public UStaticMeshComponent
 	
 public:
 	ULidarComponent();
-	void Scan(); // Linetrace to sense distances
-	void Polylinize(std::vector<segment_type>& OutLineSegments, float DiscontinuityThreshold); // Convert raw distances to line segments
-	void GetLidarData(std::vector<point_type>& points);
-
-private:
-// Private methods
-	void Publish();
-	bool GetSegment(SegmentFloat& OutSegment, float& OutStartAngle, float StepAngle, float DiscontinuityThreshold);
-	bool GetPointAtAngle(PointFloat& OutPoint, float angle_deg); // Calculates the lidar point at angle_deg in Distances[1081] 
-	bool GetDistanceAtAngle(float& OutDistance, float angle_deg); // Returns the corresponding distance in Distances[1081] 
-	float Distance(PointFloat p0, PointFloat p1);
-	float DistanceToLine(PointFloat point, PointFloat p0, PointFloat p1);
+	void Scan(); // Linetrace to measure distances
+	void Publish(); // Publish the scan to ROS
 
 private:
 // Private properties
-	float AngularResolution = 0.25; // 4 measurements per degree
 	float Range = 17; // Maximum detectable distance in meters
 	float OutOfRange = 65.533; // Value to return if distance > LidarRange
+	float AngularResolution = 0.25; // 4 measurements per degree
 	float LidarMinDegree = -135;
-	float LidarMaxDegree = 135; // (LidarMaxDegree - LidarMinDegree)*AngularResolution + 1 = 1081
+	float LidarMaxDegree = 135; 
+	int Steps = floor((LidarMaxDegree-LidarMinDegree)/AngularResolution) + 1; // e.g. [(135-(-135))/0.25] + 1 = 1081
 	float Distances[1081]; // Array of distances
 
 	UPROPERTY()
