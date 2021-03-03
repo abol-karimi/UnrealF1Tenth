@@ -48,15 +48,17 @@ public:
 	void Scan(); // Linetrace to measure distances
 	void Publish(); // Publish the scan to ROS
 
-private:
-// Private properties
+public:
 	float Range = 17; // Maximum detectable distance in meters
 	float OutOfRange = 65.533; // Value to return if distance > LidarRange
 	float AngularResolution = 0.25; // 4 measurements per degree
-	float LidarMinDegree = -135;
-	float LidarMaxDegree = 135; 
-	int Steps = floor((LidarMaxDegree-LidarMinDegree)/AngularResolution) + 1; // e.g. [(135-(-135))/0.25] + 1 = 1081
-	float Distances[1081]; // Array of distances
+	float MinDegree = -135;
+	float LidarMaxDegree = 135;
+
+private:
+// Private properties
+	int Steps = floor((LidarMaxDegree-MinDegree)/AngularResolution) + 1; // e.g. [(135-(-135))/0.25] + 1 = 1081
+	TArray<float> Distances;
 
 	UPROPERTY()
 	UTopic *ScanTopic;
