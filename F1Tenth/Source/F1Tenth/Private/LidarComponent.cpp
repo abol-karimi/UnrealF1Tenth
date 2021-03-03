@@ -70,9 +70,9 @@ void ULidarComponent::Publish()
 {
 	// Publish the data to the scan topic
 	LaserData = new ROSMessages::sensor_msgs::LaserScan();
-	LaserData->angle_min = -3*PI/4;
-	LaserData->angle_max = 3*PI/4;
-	LaserData->angle_increment = PI/180.f*AngularResolution;
+	LaserData->angle_min = LidarMinDegree*PI/180.f;
+	LaserData->angle_max = LidarMaxDegree*PI/180.f;
+	LaserData->angle_increment = AngularResolution*PI/180.f;
 	LaserData->time_increment = 0.f;
 	LaserData->scan_time = 0.f;		// time between scans[seconds]
 	LaserData->range_min = 0.021;		// minimum range value[m]

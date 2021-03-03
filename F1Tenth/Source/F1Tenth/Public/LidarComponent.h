@@ -60,7 +60,7 @@ private:
 
 private:
 // Private properties
-	float AngularResolution = 0.25; // 4 measurements per angle
+	float AngularResolution = 0.25; // 4 measurements per degree
 	float Range = 17; // Maximum detectable distance in meters
 	float OutOfRange = 65.533; // Value to return if distance > LidarRange
 	float LidarMinDegree = -135;
