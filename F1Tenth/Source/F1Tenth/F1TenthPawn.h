@@ -49,6 +49,9 @@ class AF1TenthPawn : public AWheeledVehicle
 	UPROPERTY(Category = Display, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UAudioComponent* EngineSoundComponent;
 
+	UPROPERTY(Category = Lidar, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	ULidarComponent* LidarComponent = nullptr;
+
 public:
 	AF1TenthPawn();
 
@@ -147,8 +150,5 @@ public:
 	FORCEINLINE UTextRenderComponent* GetInCarGear() const { return InCarGear; }
 	/** Returns EngineSoundComponent subobject **/
 	FORCEINLINE UAudioComponent* GetEngineSoundComponent() const { return EngineSoundComponent; }
-
-private:
-	ULidarComponent* LidarComponent = nullptr;
 
 };

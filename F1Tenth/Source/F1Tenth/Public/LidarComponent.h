@@ -52,12 +52,16 @@ public:
 	float Range = 17; // Maximum detectable distance in meters
 	float OutOfRange = 65.533; // Value to return if distance > LidarRange
 	float AngularResolution = 0.25; // 4 measurements per degree
+
+	UPROPERTY(EditAnywhere)
 	float MinDegree = -135;
-	float LidarMaxDegree = 135;
+
+	UPROPERTY(EditAnywhere)
+	float MaxDegree = 135;
 
 private:
 // Private properties
-	int Steps = floor((LidarMaxDegree-MinDegree)/AngularResolution) + 1; // e.g. [(135-(-135))/0.25] + 1 = 1081
+	int Steps = floor((MaxDegree-MinDegree)/AngularResolution) + 1;
 	TArray<float> Distances;
 
 	UPROPERTY()

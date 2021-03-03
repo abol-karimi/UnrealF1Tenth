@@ -178,7 +178,7 @@ AF1TenthPawn::AF1TenthPawn()
 	// Add Lidar sensor
 	LidarComponent = CreateDefaultSubobject<ULidarComponent>(TEXT("LidarSensor"));
 	LidarComponent->SetupAttachment(RootComponent);
-	LidarComponent->SetRelativeLocation(FVector(75.f, 0.f, 48.f));
+	LidarComponent->SetRelativeLocation(FVector(75.f, 0.f, 70.f));
 	LidarComponent->SetRelativeScale3D(FVector(0.2f, 0.2f, 0.2f));
 	LidarComponent->RegisterComponent();
 }

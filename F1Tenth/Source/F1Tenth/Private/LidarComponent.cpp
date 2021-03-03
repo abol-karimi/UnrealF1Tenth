@@ -16,8 +16,6 @@ ULidarComponent::ULidarComponent()
 
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = true;
-
-	Distances.Init(OutOfRange, Steps);
 }
 
 void ULidarComponent::BeginPlay()
@@ -30,6 +28,9 @@ void ULidarComponent::BeginPlay()
 
 	// (Optional) Advertise the topic
 	ScanTopic->Advertise();
+
+	Steps = floor((MaxDegree-MinDegree)/AngularResolution) + 1;
+	Distances.Init(OutOfRange, Steps);
 }
 
 void ULidarComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -73,7 +74,7 @@ void ULidarComponent::Publish()
 	// Publish the data to the scan topic
 	LaserData = new ROSMessages::sensor_msgs::LaserScan();
 	LaserData->angle_min = MinDegree*PI/180.f;
-	LaserData->angle_max = LidarMaxDegree*PI/180.f;
+	LaserData->angle_max = MaxDegree*PI/180.f;
 	LaserData->angle_increment = AngularResolution*PI/180.f;
 	LaserData->time_increment = 0.f;
 	LaserData->scan_time = 0.f;		// time between scans[seconds]
